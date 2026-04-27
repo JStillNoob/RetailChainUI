@@ -3,7 +3,7 @@ import axios, { type AxiosInstance } from 'axios'
 const api: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL
     ? `${import.meta.env.VITE_API_BASE_URL}/api`
-    : 'retailchaindb.database.windows.net',
+    : 'https://retailchain-api-2384.azurewebsites.net',
 })
 
 // Attach JWT token automatically to every request
