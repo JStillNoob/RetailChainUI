@@ -157,61 +157,64 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
 
     <!-- Confirm Modal -->
     <Teleport to="body">
-      <div v-if="showConfirm" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showConfirm = false">
-        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">Confirm Delivery #{{ confirmItem?.deliveryId }}</h3>
-            <button @click="showConfirm = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <p class="text-sm text-slate-500 mb-4">
-              From <strong class="text-slate-700">{{ confirmItem?.supplierName }}</strong> — Scheduled {{ fmtDate(confirmItem?.scheduledDate) }}
-            </p>
+      <Transition name="ps-modal">
+        <div v-if="showConfirm" class="ps-modal-backdrop" @click.self="showConfirm = false">
+          <div class="ps-modal-card">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">Confirm Delivery #{{ confirmItem?.deliveryId }}</h3>
+              <button class="ps-modal-close" @click="showConfirm = false" aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
+            </div>
+            <div class="ps-modal-body">
+              <p class="text-sm text-slate-500">
+                From <strong class="text-slate-700">{{ confirmItem?.supplierName }}</strong> — Scheduled {{ fmtDate(confirmItem?.scheduledDate) }}
+              </p>
 
-            <div class="grid grid-cols-2 gap-4">
-              <div class="col-span-2 flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Actual Delivery Date *</label>
+              <div>
+                <label class="ps-label">Actual Delivery Date *</label>
                 <input v-model="form.actualDate" type="date" class="ps-input" />
               </div>
-              <div class="col-span-2 flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Delivery Status</label>
+
+              <div>
+                <label class="ps-label">Delivery Status</label>
                 <div class="flex flex-col gap-2">
                   <button type="button" @click="form.isComplete = true"
-                    :class="['flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-semibold transition-all text-left',
+                    :class="['flex items-center gap-2 px-4 py-3 rounded-lg border text-sm font-semibold transition-all text-left',
                       form.isComplete ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300']">
                     <i class="ph ph-check-circle text-lg"></i> Complete — update inventory
                   </button>
                   <button type="button" @click="form.isComplete = false"
-                    :class="['flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-semibold transition-all text-left',
+                    :class="['flex items-center gap-2 px-4 py-3 rounded-lg border text-sm font-semibold transition-all text-left',
                       !form.isComplete ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300']">
                     <i class="ph ph-minus-circle text-lg"></i> Partial delivery
                   </button>
                 </div>
               </div>
-              <div class="col-span-2 flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Notes</label>
+
+              <div>
+                <label class="ps-label">Notes</label>
                 <input v-model="form.notes" placeholder="Optional notes…" class="ps-input" />
               </div>
-            </div>
 
-            <div v-if="form.isComplete" class="mt-4 flex items-start gap-2.5 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-              <i class="ph ph-info text-lg mt-0.5 flex-shrink-0"></i>
-              Confirming complete delivery will automatically update inventory stock levels.
+              <div v-if="form.isComplete" class="flex items-start gap-2.5 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                <i class="ph ph-info text-lg mt-0.5 flex-shrink-0"></i>
+                Confirming complete delivery will automatically update inventory stock levels.
+              </div>
+              <div v-if="formErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                {{ formErr }}
+              </div>
             </div>
-            <div v-if="formErr" class="mt-3 px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-              {{ formErr }}
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showConfirm = false">Cancel</button>
+              <button class="ps-btn ps-btn-primary" :disabled="confirming" @click="confirmDelivery">
+                <i v-if="confirming" class="ph ph-spinner animate-spin"></i>
+                {{ confirming ? 'Confirming…' : 'Confirm Receipt' }}
+              </button>
             </div>
-          </div>
-          <div class="flex justify-end gap-2.5 px-6 pb-6">
-            <button @click="showConfirm = false" class="ps-btn ps-btn-outline">Cancel</button>
-            <button @click="confirmDelivery" :disabled="confirming" class="ps-btn ps-btn-primary">
-              <i v-if="confirming" class="ph ph-spinner animate-spin"></i>
-              {{ confirming ? 'Confirming…' : 'Confirm Receipt' }}
-            </button>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

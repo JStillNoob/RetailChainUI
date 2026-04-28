@@ -273,11 +273,4 @@ const fieldTypeIcon = (v: string) => v === 'date' ? 'ph ph-calendar' : v === 'nu
 .panel-enter-from, .panel-leave-to { opacity: 0; }
 .panel-enter-from > div:last-child,
 .panel-leave-to > div:last-child { transform: translateX(100%); }
-
-.ps-modal-enter-active, .ps-modal-leave-active { transition: opacity 0.18s ease; }
-.ps-modal-enter-active .ps-modal-card,
-.ps-modal-leave-active .ps-modal-card { transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
-.ps-modal-enter-from, .ps-modal-leave-to { opacity: 0; }
-.ps-modal-enter-from .ps-modal-card,
-.ps-modal-leave-to .ps-modal-card { transform: scale(0.97) translateY(8px); }
 </style>

@@ -179,80 +179,86 @@ async function processPayment() {
 
     <!-- Payment Modal -->
     <Teleport to="body">
-      <div v-if="showPayment" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showPayment = false">
-        <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">Payment</h3>
-            <button @click="showPayment = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <div class="bg-slate-50 rounded-xl p-4 text-center mb-5">
-              <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Amount Due</div>
-              <div class="text-4xl font-black text-slate-900 mt-1">{{ phpFmt(cartTotal) }}</div>
+      <Transition name="ps-modal">
+        <div v-if="showPayment" class="ps-modal-backdrop" @click.self="showPayment = false">
+          <div class="ps-modal-card" style="max-width: 400px">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">Payment</h3>
+              <button class="ps-modal-close" @click="showPayment = false" aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
             </div>
-            <div class="flex flex-col gap-1.5 mb-3">
-              <label class="text-xs font-semibold text-slate-700">Amount Tendered (₱) *</label>
-              <input v-model="payForm.tendered" type="number" min="0" step="0.01" placeholder="0.00"
-                class="ps-input text-lg font-bold text-right" style="font-size: 18px; text-align: right; padding: 12px 14px;" />
+            <div class="ps-modal-body">
+              <div class="bg-slate-50 rounded-lg p-4 text-center">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Amount Due</div>
+                <div class="text-4xl font-black text-slate-900 mt-1">{{ phpFmt(cartTotal) }}</div>
+              </div>
+              <div>
+                <label class="ps-label">Amount Tendered (₱) *</label>
+                <input v-model="payForm.tendered" type="number" min="0" step="0.01" placeholder="0.00"
+                  class="ps-input" style="font-size: 18px; font-weight: 700; text-align: right; height: 48px;" />
+              </div>
+              <div v-if="parseFloat(payForm.tendered) >= cartTotal && parseFloat(payForm.tendered) > 0"
+                class="text-center text-base font-bold text-green-600">
+                Change: {{ phpFmt(change) }}
+              </div>
+              <div v-if="payErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                {{ payErr }}
+              </div>
             </div>
-            <div v-if="parseFloat(payForm.tendered) >= cartTotal && parseFloat(payForm.tendered) > 0"
-              class="text-center text-base font-bold text-green-600 mb-2">
-              Change: {{ phpFmt(change) }}
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showPayment = false">Cancel</button>
+              <button class="ps-btn ps-btn-primary" :disabled="processing" @click="processPayment">
+                <i v-if="processing" class="ph ph-spinner animate-spin"></i>
+                {{ processing ? 'Processing…' : 'Complete Sale' }}
+              </button>
             </div>
-            <div v-if="payErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 mt-2">
-              {{ payErr }}
-            </div>
-          </div>
-          <div class="flex justify-end gap-2.5 px-6 pb-6">
-            <button @click="showPayment = false" class="ps-btn ps-btn-outline">Cancel</button>
-            <button @click="processPayment" :disabled="processing" class="ps-btn ps-btn-primary">
-              <i v-if="processing" class="ph ph-spinner animate-spin"></i>
-              {{ processing ? 'Processing…' : 'Complete Sale' }}
-            </button>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
 
     <!-- Receipt Modal -->
     <Teleport to="body">
-      <div v-if="showReceipt && receipt" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showReceipt = false">
-        <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <div class="flex items-center gap-2">
-              <i class="ph ph-check-circle text-green-500 text-xl"></i>
-              <h3 class="text-base font-bold text-slate-900">Sale Complete!</h3>
+      <Transition name="ps-modal">
+        <div v-if="showReceipt && receipt" class="ps-modal-backdrop" @click.self="showReceipt = false">
+          <div class="ps-modal-card" style="max-width: 400px">
+            <div class="ps-modal-header">
+              <div class="flex items-center gap-2">
+                <i class="ph ph-check-circle text-green-500 text-xl"></i>
+                <h3 class="ps-modal-title">Sale Complete!</h3>
+              </div>
+              <button class="ps-modal-close" @click="showReceipt = false" aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
             </div>
-            <button @click="showReceipt = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <p class="text-xs text-center text-slate-400 mb-4">Transaction #{{ receipt.transactionId }}</p>
-            <div class="flex flex-col gap-2 mb-4">
-              <div v-for="item in receipt.cartSnapshot" :key="item.productId"
-                class="flex justify-between text-sm text-slate-600">
-                <span>{{ item.productName }} × {{ item.quantity }}</span>
-                <span>{{ phpFmt(item.unitPrice * item.quantity) }}</span>
+            <div class="ps-modal-body">
+              <p class="text-xs text-center text-slate-400">Transaction #{{ receipt.transactionId }}</p>
+              <div class="flex flex-col gap-2">
+                <div v-for="item in receipt.cartSnapshot" :key="item.productId"
+                  class="flex justify-between text-sm text-slate-600">
+                  <span>{{ item.productName }} × {{ item.quantity }}</span>
+                  <span>{{ phpFmt(item.unitPrice * item.quantity) }}</span>
+                </div>
+              </div>
+              <div class="border-t border-dashed border-slate-200 pt-3 flex flex-col gap-2">
+                <div class="flex justify-between text-[15px] font-bold text-slate-900">
+                  <span>Total</span><strong>{{ phpFmt(receipt.cartTotal) }}</strong>
+                </div>
+                <div class="flex justify-between text-sm text-slate-500">
+                  <span>Tendered</span><span>{{ phpFmt(receipt.tendered) }}</span>
+                </div>
+                <div class="flex justify-between text-[15px] font-bold text-green-600">
+                  <span>Change</span><strong>{{ phpFmt(receipt.changeAmount) }}</strong>
+                </div>
               </div>
             </div>
-            <div class="border-t border-dashed border-slate-200 pt-3 flex flex-col gap-2">
-              <div class="flex justify-between text-[15px] font-bold text-slate-900">
-                <span>Total</span><strong>{{ phpFmt(receipt.cartTotal) }}</strong>
-              </div>
-              <div class="flex justify-between text-sm text-slate-500">
-                <span>Tendered</span><span>{{ phpFmt(receipt.tendered) }}</span>
-              </div>
-              <div class="flex justify-between text-[15px] font-bold text-green-600">
-                <span>Change</span><strong>{{ phpFmt(receipt.changeAmount) }}</strong>
-              </div>
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-primary" @click="showReceipt = false">New Transaction</button>
             </div>
-          </div>
-          <div class="flex justify-end px-6 pb-6">
-            <button @click="showReceipt = false" class="ps-btn ps-btn-primary">New Transaction</button>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

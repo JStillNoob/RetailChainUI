@@ -235,80 +235,86 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
 
     <!-- Add Product Modal -->
     <Teleport to="body">
-      <div v-if="showAdd" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showAdd = false">
-        <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">Add Product</h3>
-            <button @click="showAdd = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Basic Information</div>
-            <div class="grid grid-cols-2 gap-4">
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Product Name <span class="text-red-500">*</span></label>
-                <input v-model="prodForm.productName" placeholder="e.g. Samsung Galaxy S24" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">SKU / Barcode</label>
-                <input v-model="prodForm.sku" placeholder="e.g. SAM-S24-128" class="ps-input" />
-              </div>
-              <div class="col-span-2 flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Unit Price (₱)</label>
-                <input v-model="prodForm.price" type="number" min="0" step="0.01" placeholder="0.00" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Stock Quantity</label>
-                <input v-model="prodForm.quantity" type="number" min="0" placeholder="0" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Description</label>
-                <input v-model="prodForm.description" placeholder="Optional short description" class="ps-input" />
-              </div>
+      <Transition name="ps-modal">
+        <div v-if="showAdd" class="ps-modal-backdrop" @click.self="showAdd = false">
+          <div class="ps-modal-card" style="max-width: 640px">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">Add Product</h3>
+              <button class="ps-modal-close" @click="showAdd = false" aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
             </div>
-
-            <template v-if="templates.length > 0">
-              <hr class="border-slate-100 my-5" />
-              <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <i class="ph ph-sliders text-blue-500"></i> Store-Specific Attributes
-              </div>
-
-              <div v-if="templatesLoading" class="text-sm text-slate-400 flex items-center gap-2">
-                <i class="ph ph-spinner animate-spin"></i> Loading custom fields…
-              </div>
-
-              <div v-else class="grid grid-cols-2 gap-4 bg-blue-50/40 border border-blue-100 rounded-xl p-4">
-                <div v-for="tmpl in templates" :key="tmpl.prodAttrTemplateId ?? tmpl.templateId" class="flex flex-col gap-1.5">
-                  <label class="text-xs font-semibold text-slate-700 flex items-center gap-1">
-                    <i :class="[fieldIcon(tmpl.fieldType), 'text-blue-500']"></i>
-                    {{ tmpl.fieldName }}
-                    <span v-if="tmpl.isRequired" class="text-red-500">*</span>
-                  </label>
-                  <input v-if="tmpl.fieldType === 'text'"
-                    v-model="attrValues[tmpl.prodAttrTemplateId ?? tmpl.templateId!]"
-                    :placeholder="`Enter ${tmpl.fieldName}`" class="ps-input" />
-                  <input v-else-if="tmpl.fieldType === 'number'"
-                    v-model="attrValues[tmpl.prodAttrTemplateId ?? tmpl.templateId!]" type="number"
-                    :placeholder="`Enter ${tmpl.fieldName}`" class="ps-input" />
-                  <input v-else-if="tmpl.fieldType === 'date'"
-                    v-model="attrValues[tmpl.prodAttrTemplateId ?? tmpl.templateId!]" type="date" class="ps-input" />
-                  <label v-else-if="tmpl.fieldType === 'boolean'" class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer py-2">
-                    <input type="checkbox" v-model="attrValues[tmpl.prodAttrTemplateId ?? tmpl.templateId!]" class="w-4 h-4 accent-blue-500" />
-                    <span>{{ tmpl.fieldName }}</span>
-                  </label>
+            <div class="ps-modal-body">
+              <div>
+                <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Basic Information</div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="ps-label">Product Name <span class="text-red-500">*</span></label>
+                    <input v-model="prodForm.productName" placeholder="e.g. Samsung Galaxy S24" class="ps-input" />
+                  </div>
+                  <div>
+                    <label class="ps-label">SKU / Barcode</label>
+                    <input v-model="prodForm.sku" placeholder="e.g. SAM-S24-128" class="ps-input" />
+                  </div>
+                  <div class="col-span-2">
+                    <label class="ps-label">Unit Price (₱)</label>
+                    <input v-model="prodForm.price" type="number" min="0" step="0.01" placeholder="0.00" class="ps-input" />
+                  </div>
+                  <div>
+                    <label class="ps-label">Stock Quantity</label>
+                    <input v-model="prodForm.quantity" type="number" min="0" placeholder="0" class="ps-input" />
+                  </div>
+                  <div>
+                    <label class="ps-label">Description</label>
+                    <input v-model="prodForm.description" placeholder="Optional short description" class="ps-input" />
+                  </div>
                 </div>
               </div>
-            </template>
-          </div>
-          <div class="flex justify-end gap-2.5 px-6 pb-6">
-            <button @click="showAdd = false" class="ps-btn ps-btn-outline">Cancel</button>
-            <button @click="submitProduct" :disabled="saving || !prodForm.productName.trim()" class="ps-btn ps-btn-primary">
-              <i :class="saving ? 'ph ph-spinner animate-spin' : 'ph ph-plus'"></i>
-              {{ saving ? 'Saving…' : 'Add Product' }}
-            </button>
+
+              <template v-if="templates.length > 0">
+                <div>
+                  <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <i class="ph ph-sliders text-blue-500"></i> Store-Specific Attributes
+                  </div>
+
+                  <div v-if="templatesLoading" class="text-sm text-slate-400 flex items-center gap-2">
+                    <i class="ph ph-spinner animate-spin"></i> Loading custom fields…
+                  </div>
+
+                  <div v-else class="grid grid-cols-2 gap-3 bg-blue-50/40 border border-blue-100 rounded-lg p-4">
+                    <div v-for="tmpl in templates" :key="tmpl.prodAttrTemplateId ?? tmpl.templateId">
+                      <label class="ps-label flex items-center gap-1">
+                        <i :class="[fieldIcon(tmpl.fieldType), 'text-blue-500']"></i>
+                        {{ tmpl.fieldName }}
+                        <span v-if="tmpl.isRequired" class="text-red-500">*</span>
+                      </label>
+                      <input v-if="tmpl.fieldType === 'text'"
+                        v-model="attrValues[tmpl.prodAttrTemplateId ?? tmpl.templateId!]"
+                        :placeholder="`Enter ${tmpl.fieldName}`" class="ps-input" />
+                      <input v-else-if="tmpl.fieldType === 'number'"
+                        v-model="attrValues[tmpl.prodAttrTemplateId ?? tmpl.templateId!]" type="number"
+                        :placeholder="`Enter ${tmpl.fieldName}`" class="ps-input" />
+                      <input v-else-if="tmpl.fieldType === 'date'"
+                        v-model="attrValues[tmpl.prodAttrTemplateId ?? tmpl.templateId!]" type="date" class="ps-input" />
+                      <label v-else-if="tmpl.fieldType === 'boolean'" class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer py-2">
+                        <input type="checkbox" v-model="attrValues[tmpl.prodAttrTemplateId ?? tmpl.templateId!]" class="w-4 h-4 accent-blue-500" />
+                        <span>{{ tmpl.fieldName }}</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showAdd = false">Cancel</button>
+              <button class="ps-btn ps-btn-primary" :disabled="saving || !prodForm.productName.trim()" @click="submitProduct">
+                <i :class="saving ? 'ph ph-spinner animate-spin' : 'ph ph-plus'"></i>
+                {{ saving ? 'Saving…' : 'Add Product' }}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

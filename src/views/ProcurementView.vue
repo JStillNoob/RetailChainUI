@@ -244,135 +244,141 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
 
     <!-- Create PO Modal -->
     <Teleport to="body">
-      <div v-if="showCreate" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showCreate = false">
-        <div class="bg-white rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">New Purchase Order</h3>
-            <button @click="showCreate = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <div class="grid grid-cols-3 gap-4 mb-5">
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Supplier *</label>
-                <select v-model="poForm.supplierId" class="ps-input">
-                  <option :value="null">— Select supplier —</option>
-                  <option v-for="s in suppliers" :key="s.supplierId" :value="s.supplierId">{{ s.name }}</option>
-                </select>
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Order Date</label>
-                <input v-model="poForm.orderDate" type="date" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Expected Delivery</label>
-                <input v-model="poForm.expectedDate" type="date" class="ps-input" />
-              </div>
-            </div>
-
-            <div class="flex items-center justify-between mb-3">
-              <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Line Items</span>
-              <button @click="addItem" class="ps-btn ps-btn-outline" style="padding: 6px 14px; font-size: 12px;">
-                <i class="ph ph-plus"></i> Add Line
+      <Transition name="ps-modal">
+        <div v-if="showCreate" class="ps-modal-backdrop" @click.self="showCreate = false">
+          <div class="ps-modal-card" style="max-width: 800px">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">New Purchase Order</h3>
+              <button class="ps-modal-close" @click="showCreate = false" aria-label="Close">
+                <i class="ph ph-x"></i>
               </button>
             </div>
-
-            <div class="border border-slate-200 rounded-xl overflow-hidden">
-              <div class="grid bg-slate-50 px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider" style="grid-template-columns:1fr 110px 120px 110px 40px;gap:8px">
-                <span>Product</span><span>Quantity</span><span>Unit Cost</span><span>Subtotal</span><span></span>
+            <div class="ps-modal-body">
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label class="ps-label">Supplier *</label>
+                  <select v-model="poForm.supplierId" class="ps-input">
+                    <option :value="null">— Select supplier —</option>
+                    <option v-for="s in suppliers" :key="s.supplierId" :value="s.supplierId">{{ s.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="ps-label">Order Date</label>
+                  <input v-model="poForm.orderDate" type="date" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">Expected Delivery</label>
+                  <input v-model="poForm.expectedDate" type="date" class="ps-input" />
+                </div>
               </div>
-              <div v-for="(item, idx) in items" :key="idx"
-                class="grid items-center px-3 py-2 border-t border-slate-100 hover:bg-slate-50/50"
-                style="grid-template-columns:1fr 110px 120px 110px 40px;gap:8px">
-                <select v-model="item.productId" class="ps-input" style="padding: 7px 12px;">
-                  <option :value="null">— Select product —</option>
-                  <option v-for="p in products" :key="p.productId" :value="p.productId">{{ p.productName }}</option>
-                </select>
-                <input v-model="item.quantity" type="number" min="0" placeholder="0" class="ps-input" style="padding: 7px 12px;" />
-                <input v-model="item.unitCost" type="number" min="0" step="0.01" placeholder="0.00" class="ps-input" style="padding: 7px 12px;" />
-                <span class="font-semibold text-sm text-slate-800">{{ phpFmt(lineTotal(item)) }}</span>
-                <button @click="removeItem(idx)" :disabled="items.length === 1"
-                  class="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all disabled:opacity-30">
-                  <i class="ph ph-trash text-sm"></i>
+
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Line Items</span>
+                <button @click="addItem" class="ps-btn ps-btn-outline ps-btn-sm">
+                  <i class="ph ph-plus"></i> Add Line
                 </button>
               </div>
-            </div>
 
-            <div class="text-right text-sm font-semibold text-slate-800 mt-3 pt-3 border-t border-dashed border-slate-200">
-              Grand Total: <strong class="text-base">{{ phpFmt(grandTotal) }}</strong>
+              <div class="border border-slate-200 rounded-lg overflow-hidden">
+                <div class="grid bg-slate-50 px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider" style="grid-template-columns:1fr 110px 120px 110px 40px;gap:8px">
+                  <span>Product</span><span>Quantity</span><span>Unit Cost</span><span>Subtotal</span><span></span>
+                </div>
+                <div v-for="(item, idx) in items" :key="idx"
+                  class="grid items-center px-3 py-2 border-t border-slate-100 hover:bg-slate-50/50"
+                  style="grid-template-columns:1fr 110px 120px 110px 40px;gap:8px">
+                  <select v-model="item.productId" class="ps-input">
+                    <option :value="null">— Select product —</option>
+                    <option v-for="p in products" :key="p.productId" :value="p.productId">{{ p.productName }}</option>
+                  </select>
+                  <input v-model="item.quantity" type="number" min="0" placeholder="0" class="ps-input" />
+                  <input v-model="item.unitCost" type="number" min="0" step="0.01" placeholder="0.00" class="ps-input" />
+                  <span class="font-semibold text-sm text-slate-800">{{ phpFmt(lineTotal(item)) }}</span>
+                  <button @click="removeItem(idx)" :disabled="items.length === 1"
+                    class="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all disabled:opacity-30">
+                    <i class="ph ph-trash text-sm"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="text-right text-sm font-semibold text-slate-800 pt-3 border-t border-dashed border-slate-200">
+                Grand Total: <strong class="text-base">{{ phpFmt(grandTotal) }}</strong>
+              </div>
+              <div v-if="createErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                {{ createErr }}
+              </div>
             </div>
-            <div v-if="createErr" class="mt-3 px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-              {{ createErr }}
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showCreate = false">Cancel</button>
+              <button class="ps-btn ps-btn-primary" :disabled="creating" @click="createPo">
+                <i v-if="creating" class="ph ph-spinner animate-spin"></i>
+                {{ creating ? 'Creating…' : 'Create Purchase Order' }}
+              </button>
             </div>
-          </div>
-          <div class="flex justify-end gap-2.5 px-6 pb-6">
-            <button @click="showCreate = false" class="ps-btn ps-btn-outline">Cancel</button>
-            <button @click="createPo" :disabled="creating" class="ps-btn ps-btn-primary">
-              <i v-if="creating" class="ph ph-spinner animate-spin"></i>
-              {{ creating ? 'Creating…' : 'Create Purchase Order' }}
-            </button>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
 
     <!-- Detail Modal -->
     <Teleport to="body">
-      <div v-if="showDetail" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showDetail = false">
-        <div class="bg-white rounded-2xl w-full max-w-xl shadow-2xl max-h-[90vh] overflow-y-auto">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">PO #{{ detail?.poId }} — {{ detail?.supplierName }}</h3>
-            <button @click="showDetail = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <div v-if="detLoading" class="flex items-center justify-center gap-2 py-10 text-slate-400">
-              <i class="ph ph-spinner animate-spin text-xl text-blue-500"></i> Loading…
+      <Transition name="ps-modal">
+        <div v-if="showDetail" class="ps-modal-backdrop" @click.self="showDetail = false">
+          <div class="ps-modal-card" style="max-width: 600px">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">PO #{{ detail?.poId }} — {{ detail?.supplierName }}</h3>
+              <button class="ps-modal-close" @click="showDetail = false" aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
             </div>
-            <template v-else-if="detail">
-              <div class="grid grid-cols-4 gap-3 mb-5">
-                <div class="bg-slate-50 rounded-xl p-3">
-                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</div>
-                  <span :class="statusTag(detail.status)">{{ detail.status }}</span>
-                </div>
-                <div class="bg-slate-50 rounded-xl p-3">
-                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Order Date</div>
-                  <div class="text-sm font-semibold text-slate-800">{{ fmtDate(detail.orderDate) }}</div>
-                </div>
-                <div class="bg-slate-50 rounded-xl p-3">
-                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Expected</div>
-                  <div class="text-sm font-semibold text-slate-800">{{ fmtDate(detail.expectedDate) }}</div>
-                </div>
-                <div class="bg-slate-50 rounded-xl p-3">
-                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total</div>
-                  <div class="text-sm font-bold text-slate-900">{{ phpFmt(detail.totalAmount) }}</div>
-                </div>
+            <div class="ps-modal-body">
+              <div v-if="detLoading" class="flex items-center justify-center gap-2 py-10 text-slate-400">
+                <i class="ph ph-spinner animate-spin text-xl text-blue-500"></i> Loading…
               </div>
-              <table class="w-full text-sm border border-slate-100 rounded-xl overflow-hidden">
-                <thead class="bg-slate-50">
-                  <tr>
-                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Product</th>
-                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Qty</th>
-                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Unit Cost</th>
-                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="i in detail.items" :key="i.poItemId" class="border-t border-slate-100">
-                    <td class="px-3 py-2.5 text-slate-700">{{ i.productName }}</td>
-                    <td class="px-3 py-2.5 text-right text-slate-600">{{ Number(i.quantity).toLocaleString() }}</td>
-                    <td class="px-3 py-2.5 text-right text-slate-500">{{ phpFmt(i.unitCost) }}</td>
-                    <td class="px-3 py-2.5 text-right font-semibold text-slate-800">{{ phpFmt(i.subtotal) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </template>
-          </div>
-          <div class="flex justify-end px-6 pb-6">
-            <button @click="showDetail = false" class="ps-btn ps-btn-outline">Close</button>
+              <template v-else-if="detail">
+                <div class="grid grid-cols-4 gap-3">
+                  <div class="bg-slate-50 rounded-lg p-3">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</div>
+                    <span :class="statusTag(detail.status)">{{ detail.status }}</span>
+                  </div>
+                  <div class="bg-slate-50 rounded-lg p-3">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Order Date</div>
+                    <div class="text-sm font-semibold text-slate-800">{{ fmtDate(detail.orderDate) }}</div>
+                  </div>
+                  <div class="bg-slate-50 rounded-lg p-3">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Expected</div>
+                    <div class="text-sm font-semibold text-slate-800">{{ fmtDate(detail.expectedDate) }}</div>
+                  </div>
+                  <div class="bg-slate-50 rounded-lg p-3">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total</div>
+                    <div class="text-sm font-bold text-slate-900">{{ phpFmt(detail.totalAmount) }}</div>
+                  </div>
+                </div>
+                <table class="w-full text-sm border border-slate-100 rounded-lg overflow-hidden">
+                  <thead class="bg-slate-50">
+                    <tr>
+                      <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Product</th>
+                      <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Qty</th>
+                      <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Unit Cost</th>
+                      <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="i in detail.items" :key="i.poItemId" class="border-t border-slate-100">
+                      <td class="px-3 py-2.5 text-slate-700">{{ i.productName }}</td>
+                      <td class="px-3 py-2.5 text-right text-slate-600">{{ Number(i.quantity).toLocaleString() }}</td>
+                      <td class="px-3 py-2.5 text-right text-slate-500">{{ phpFmt(i.unitCost) }}</td>
+                      <td class="px-3 py-2.5 text-right font-semibold text-slate-800">{{ phpFmt(i.subtotal) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </template>
+            </div>
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showDetail = false">Close</button>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

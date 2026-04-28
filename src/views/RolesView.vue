@@ -178,31 +178,34 @@ function onEditCheck(p: any, field: 'canEdit' | 'canDelete') {
 
     <!-- Add Role Modal -->
     <Teleport to="body">
-      <div v-if="showAdd" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showAdd = false">
-        <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">New Role</h3>
-            <button @click="showAdd = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-slate-700">Role Name *</label>
-              <input v-model="addName" placeholder="e.g. Store Manager" @keyup.enter="createRole" class="ps-input" />
+      <Transition name="ps-modal">
+        <div v-if="showAdd" class="ps-modal-backdrop" @click.self="showAdd = false">
+          <div class="ps-modal-card" style="max-width: 400px">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">New Role</h3>
+              <button class="ps-modal-close" @click="showAdd = false" aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
             </div>
-            <div v-if="addErr" class="mt-3 px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-              {{ addErr }}
+            <div class="ps-modal-body">
+              <div>
+                <label class="ps-label">Role Name *</label>
+                <input v-model="addName" placeholder="e.g. Store Manager" @keyup.enter="createRole" class="ps-input" />
+              </div>
+              <div v-if="addErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                {{ addErr }}
+              </div>
             </div>
-          </div>
-          <div class="flex justify-end gap-2.5 px-6 pb-6">
-            <button @click="showAdd = false" class="ps-btn ps-btn-outline">Cancel</button>
-            <button @click="createRole" :disabled="addSaving" class="ps-btn ps-btn-primary">
-              <i v-if="addSaving" class="ph ph-spinner animate-spin"></i>
-              {{ addSaving ? 'Creating…' : 'Create Role' }}
-            </button>
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showAdd = false">Cancel</button>
+              <button class="ps-btn ps-btn-primary" :disabled="addSaving" @click="createRole">
+                <i v-if="addSaving" class="ph ph-spinner animate-spin"></i>
+                {{ addSaving ? 'Creating…' : 'Create Role' }}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

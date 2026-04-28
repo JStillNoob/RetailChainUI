@@ -218,59 +218,62 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
 
     <!-- Add/Edit Modal -->
     <Teleport to="body">
-      <div v-if="showModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showModal = false">
-        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">{{ isEdit ? 'Edit User' : 'Add New User' }}</h3>
-            <button @click="showModal = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <div class="grid grid-cols-2 gap-4">
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">First Name *</label>
-                <input v-model="form.firstName" placeholder="First name" class="ps-input" />
+      <Transition name="ps-modal">
+        <div v-if="showModal" class="ps-modal-backdrop" @click.self="showModal = false">
+          <div class="ps-modal-card" style="max-width: 560px">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">{{ isEdit ? 'Edit User' : 'Add New User' }}</h3>
+              <button class="ps-modal-close" @click="showModal = false" aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
+            </div>
+            <div class="ps-modal-body">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="ps-label">First Name *</label>
+                  <input v-model="form.firstName" placeholder="First name" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">Last Name</label>
+                  <input v-model="form.lastName" placeholder="Last name" class="ps-input" />
+                </div>
+                <div v-if="!isEdit">
+                  <label class="ps-label">Email *</label>
+                  <input v-model="form.email" type="email" placeholder="user@email.com" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">{{ isEdit ? 'New Password (blank to keep)' : 'Password *' }}</label>
+                  <input v-model="form.password" type="password" placeholder="••••••••" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">Role</label>
+                  <select v-model="form.roleId" class="ps-input">
+                    <option :value="null">— No Role —</option>
+                    <option v-for="r in roles" :key="r.roleId" :value="r.roleId">{{ r.roleName }}</option>
+                  </select>
+                </div>
+                <div v-if="isEdit">
+                  <label class="ps-label">Status</label>
+                  <select v-model="form.status" class="ps-input">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
               </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Last Name</label>
-                <input v-model="form.lastName" placeholder="Last name" class="ps-input" />
-              </div>
-              <div v-if="!isEdit" class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Email *</label>
-                <input v-model="form.email" type="email" placeholder="user@email.com" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">{{ isEdit ? 'New Password (blank to keep)' : 'Password *' }}</label>
-                <input v-model="form.password" type="password" placeholder="••••••••" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Role</label>
-                <select v-model="form.roleId" class="ps-input">
-                  <option :value="null">— No Role —</option>
-                  <option v-for="r in roles" :key="r.roleId" :value="r.roleId">{{ r.roleName }}</option>
-                </select>
-              </div>
-              <div v-if="isEdit" class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Status</label>
-                <select v-model="form.status" class="ps-input">
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
+              <div v-if="formErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                {{ formErr }}
               </div>
             </div>
-            <div v-if="formErr" class="mt-4 px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-              {{ formErr }}
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showModal = false">Cancel</button>
+              <button class="ps-btn ps-btn-primary" :disabled="saving" @click="save">
+                <i v-if="saving" class="ph ph-spinner animate-spin"></i>
+                {{ saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create User' }}
+              </button>
             </div>
-          </div>
-          <div class="flex justify-end gap-2.5 px-6 pb-6">
-            <button @click="showModal = false" class="ps-btn ps-btn-outline">Cancel</button>
-            <button @click="save" :disabled="saving" class="ps-btn ps-btn-primary">
-              <i v-if="saving" class="ph ph-spinner animate-spin"></i>
-              {{ saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create User' }}
-            </button>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

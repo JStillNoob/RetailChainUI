@@ -172,52 +172,55 @@ const todayTotal = computed(() => sales.value.reduce((s, t) => s + Number(t.tota
 
     <!-- Detail Modal -->
     <Teleport to="body">
-      <div v-if="showDetail" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showDetail = false">
-        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">Transaction #{{ detail?.transactionId }}</h3>
-            <button @click="showDetail = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <div v-if="detLoading" class="flex items-center justify-center gap-2 py-10 text-slate-400">
-              <i class="ph ph-spinner animate-spin text-xl text-blue-500"></i> Loading…
+      <Transition name="ps-modal">
+        <div v-if="showDetail" class="ps-modal-backdrop" @click.self="showDetail = false">
+          <div class="ps-modal-card" style="max-width: 560px">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">Transaction #{{ detail?.transactionId }}</h3>
+              <button class="ps-modal-close" @click="showDetail = false" aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
             </div>
-            <template v-else-if="detail">
-              <div class="flex flex-wrap gap-4 text-sm mb-5">
-                <span><strong class="text-slate-700">Date:</strong> <span class="text-slate-500">{{ fmtDateTime(detail.transactionDate) }}</span></span>
-                <span><strong class="text-slate-700">Payment:</strong> <span class="text-slate-500">{{ detail.paymentMethod ?? 'Cash' }}</span></span>
+            <div class="ps-modal-body">
+              <div v-if="detLoading" class="flex items-center justify-center gap-2 py-10 text-slate-400">
+                <i class="ph ph-spinner animate-spin text-xl text-blue-500"></i> Loading…
               </div>
-              <table class="w-full text-sm border border-slate-100 rounded-xl overflow-hidden">
-                <thead class="bg-slate-50">
-                  <tr>
-                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Product</th>
-                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Qty</th>
-                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Unit Price</th>
-                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in detail.items" :key="item.itemId" class="border-t border-slate-100">
-                    <td class="px-3 py-2 text-slate-700">{{ item.productName }}</td>
-                    <td class="px-3 py-2 text-right text-slate-600">{{ Number(item.quantity).toLocaleString() }}</td>
-                    <td class="px-3 py-2 text-right text-slate-500">{{ phpFmt(item.unitPrice) }}</td>
-                    <td class="px-3 py-2 text-right font-semibold text-slate-800">{{ phpFmt(item.subtotal) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div class="border-t border-dashed border-slate-200 mt-4 pt-4 flex flex-col gap-2">
-                <div class="flex justify-between text-sm text-slate-600"><span>Total</span><strong class="text-slate-900">{{ phpFmt(detail.totalAmount) }}</strong></div>
-                <div class="flex justify-between text-sm text-slate-500"><span>Tendered</span><span>{{ phpFmt(detail.amountTendered) }}</span></div>
-                <div class="flex justify-between text-[15px] font-bold text-green-600"><span>Change</span><span>{{ phpFmt(detail.changeAmount) }}</span></div>
-              </div>
-            </template>
-          </div>
-          <div class="flex justify-end px-6 pb-6">
-            <button @click="showDetail = false" class="ps-btn ps-btn-outline">Close</button>
+              <template v-else-if="detail">
+                <div class="flex flex-wrap gap-4 text-sm">
+                  <span><strong class="text-slate-700">Date:</strong> <span class="text-slate-500">{{ fmtDateTime(detail.transactionDate) }}</span></span>
+                  <span><strong class="text-slate-700">Payment:</strong> <span class="text-slate-500">{{ detail.paymentMethod ?? 'Cash' }}</span></span>
+                </div>
+                <table class="w-full text-sm border border-slate-100 rounded-lg overflow-hidden">
+                  <thead class="bg-slate-50">
+                    <tr>
+                      <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Product</th>
+                      <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Qty</th>
+                      <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Unit Price</th>
+                      <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in detail.items" :key="item.itemId" class="border-t border-slate-100">
+                      <td class="px-3 py-2 text-slate-700">{{ item.productName }}</td>
+                      <td class="px-3 py-2 text-right text-slate-600">{{ Number(item.quantity).toLocaleString() }}</td>
+                      <td class="px-3 py-2 text-right text-slate-500">{{ phpFmt(item.unitPrice) }}</td>
+                      <td class="px-3 py-2 text-right font-semibold text-slate-800">{{ phpFmt(item.subtotal) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="border-t border-dashed border-slate-200 pt-3 flex flex-col gap-2">
+                  <div class="flex justify-between text-sm text-slate-600"><span>Total</span><strong class="text-slate-900">{{ phpFmt(detail.totalAmount) }}</strong></div>
+                  <div class="flex justify-between text-sm text-slate-500"><span>Tendered</span><span>{{ phpFmt(detail.amountTendered) }}</span></div>
+                  <div class="flex justify-between text-[15px] font-bold text-green-600"><span>Change</span><span>{{ phpFmt(detail.changeAmount) }}</span></div>
+                </div>
+              </template>
+            </div>
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showDetail = false">Close</button>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

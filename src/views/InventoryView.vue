@@ -236,60 +236,63 @@ const okCount = computed(() => items.value.length - lowCount.value)
 
     <!-- Adjust Modal -->
     <Teleport to="body">
-      <div v-if="showAdjust" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showAdjust = false">
-        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">Stock Adjustment — {{ adjustItem?.productName }}</h3>
-            <button @click="showAdjust = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <p class="text-sm text-slate-500 mb-4">Current: <strong class="text-slate-800">{{ Number(adjustItem?.qtyOnHand).toLocaleString() }} units</strong></p>
+      <Transition name="ps-modal">
+        <div v-if="showAdjust" class="ps-modal-backdrop" @click.self="showAdjust = false">
+          <div class="ps-modal-card">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">Stock Adjustment — {{ adjustItem?.productName }}</h3>
+              <button class="ps-modal-close" @click="showAdjust = false" aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
+            </div>
+            <div class="ps-modal-body">
+              <p class="text-sm text-slate-500">Current: <strong class="text-slate-800">{{ Number(adjustItem?.qtyOnHand).toLocaleString() }} units</strong></p>
 
-            <div class="flex flex-col gap-1.5 mb-4">
-              <label class="text-xs font-semibold text-slate-700">Adjustment Type</label>
-              <div class="flex gap-3">
-                <button type="button" @click="adjustForm.adjustmentType = 'StockIn'"
-                  :class="['flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all cursor-pointer',
-                    adjustForm.adjustmentType === 'StockIn' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300']">
-                  <i class="ph ph-plus-circle"></i> Stock In (+)
-                </button>
-                <button type="button" @click="adjustForm.adjustmentType = 'StockOut'"
-                  :class="['flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all cursor-pointer',
-                    adjustForm.adjustmentType === 'StockOut' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300']">
-                  <i class="ph ph-minus-circle"></i> Stock Out (-)
-                </button>
+              <div>
+                <label class="ps-label">Adjustment Type</label>
+                <div class="flex gap-2">
+                  <button type="button" @click="adjustForm.adjustmentType = 'StockIn'"
+                    :class="['flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-semibold transition-all cursor-pointer flex-1 justify-center',
+                      adjustForm.adjustmentType === 'StockIn' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300']">
+                    <i class="ph ph-plus-circle"></i> Stock In (+)
+                  </button>
+                  <button type="button" @click="adjustForm.adjustmentType = 'StockOut'"
+                    :class="['flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-semibold transition-all cursor-pointer flex-1 justify-center',
+                      adjustForm.adjustmentType === 'StockOut' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300']">
+                    <i class="ph ph-minus-circle"></i> Stock Out (-)
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="ps-label">Quantity *</label>
+                  <input v-model="adjustForm.quantity" type="number" placeholder="0" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">Location</label>
+                  <input v-model="adjustForm.location" placeholder="e.g. Aisle 3" class="ps-input" />
+                </div>
+                <div class="col-span-2">
+                  <label class="ps-label">Note</label>
+                  <input v-model="adjustForm.note" placeholder="Optional note" class="ps-input" />
+                </div>
+              </div>
+
+              <div v-if="adjustErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                {{ adjustErr }}
               </div>
             </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Quantity *</label>
-                <input v-model="adjustForm.quantity" type="number" placeholder="0" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Location</label>
-                <input v-model="adjustForm.location" placeholder="e.g. Aisle 3" class="ps-input" />
-              </div>
-              <div class="col-span-2 flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Note</label>
-                <input v-model="adjustForm.note" placeholder="Optional note" class="ps-input" />
-              </div>
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showAdjust = false">Cancel</button>
+              <button class="ps-btn ps-btn-primary" :disabled="adjustSaving" @click="saveAdjust">
+                <i v-if="adjustSaving" class="ph ph-spinner animate-spin"></i>
+                {{ adjustSaving ? 'Saving…' : 'Apply Adjustment' }}
+              </button>
             </div>
-
-            <div v-if="adjustErr" class="mt-4 px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-              {{ adjustErr }}
-            </div>
-          </div>
-          <div class="flex justify-end gap-2.5 px-6 pb-6">
-            <button @click="showAdjust = false" class="ps-btn ps-btn-outline">Cancel</button>
-            <button @click="saveAdjust" :disabled="adjustSaving" class="ps-btn ps-btn-primary">
-              <i v-if="adjustSaving" class="ph ph-spinner animate-spin"></i>
-              {{ adjustSaving ? 'Saving…' : 'Apply Adjustment' }}
-            </button>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

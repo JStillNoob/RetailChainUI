@@ -87,39 +87,40 @@ const typeTag = (t: string) => ({
 
     <!-- Broadcast Modal -->
     <Teleport to="body">
-      <div v-if="showForm" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showForm = false">
-        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">Send Platform Announcement</h3>
-            <button @click="showForm = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <div class="flex flex-col gap-4">
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Type</label>
+      <Transition name="ps-modal">
+        <div v-if="showForm" class="ps-modal-backdrop" @click.self="showForm = false">
+          <div class="ps-modal-card" style="max-width: 520px">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">Send Platform Announcement</h3>
+              <button class="ps-modal-close" @click="showForm = false" aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
+            </div>
+            <div class="ps-modal-body">
+              <div>
+                <label class="ps-label">Type</label>
                 <select v-model="form.type" class="ps-input">
                   <option>Announcement</option><option>Maintenance</option><option>Update</option><option>Alert</option>
                 </select>
               </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Message</label>
-                <textarea v-model="form.message" rows="4" placeholder="Write your announcement here…" class="ps-input" style="font-family: inherit;"></textarea>
+              <div>
+                <label class="ps-label">Message</label>
+                <textarea v-model="form.message" rows="4" placeholder="Write your announcement here…" class="ps-input"></textarea>
               </div>
               <div v-if="sent" class="px-4 py-2.5 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center gap-2">
                 <i class="ph-fill ph-check-circle"></i> Sent successfully!
               </div>
             </div>
-          </div>
-          <div class="flex justify-end gap-2.5 px-6 pb-6">
-            <button @click="showForm = false" class="ps-btn ps-btn-outline">Cancel</button>
-            <button @click="broadcast" :disabled="sending" class="ps-btn ps-btn-primary">
-              <i :class="sending ? 'ph ph-spinner animate-spin' : 'ph ph-paper-plane-tilt'"></i>
-              {{ sending ? 'Sending…' : 'Broadcast' }}
-            </button>
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showForm = false">Cancel</button>
+              <button class="ps-btn ps-btn-primary" :disabled="sending" @click="broadcast">
+                <i :class="sending ? 'ph ph-spinner animate-spin' : 'ph ph-paper-plane-tilt'"></i>
+                {{ sending ? 'Sending…' : 'Broadcast' }}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

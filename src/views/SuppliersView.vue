@@ -221,69 +221,72 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
 
     <!-- Modal -->
     <Teleport to="body">
-      <div v-if="showModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showModal = false">
-        <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">{{ isEdit ? 'Edit Supplier' : 'Add Supplier' }}</h3>
-            <button @click="showModal = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <div class="grid grid-cols-2 gap-4">
-              <div class="col-span-2 flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Supplier Name *</label>
-                <input v-model="form.name" placeholder="Company or supplier name" class="ps-input" />
+      <Transition name="ps-modal">
+        <div v-if="showModal" class="ps-modal-backdrop" @click.self="showModal = false">
+          <div class="ps-modal-card" style="max-width: 640px">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">{{ isEdit ? 'Edit Supplier' : 'Add Supplier' }}</h3>
+              <button class="ps-modal-close" @click="showModal = false" aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
+            </div>
+            <div class="ps-modal-body">
+              <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                  <label class="ps-label">Supplier Name *</label>
+                  <input v-model="form.name" placeholder="Company or supplier name" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">Contact First Name</label>
+                  <input v-model="form.contactFirstName" placeholder="First name" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">Contact Last Name</label>
+                  <input v-model="form.contactLastName" placeholder="Last name" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">Email</label>
+                  <input v-model="form.email" type="email" placeholder="supplier@email.com" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">Phone</label>
+                  <input v-model="form.phone" placeholder="+63 9XX XXX XXXX" class="ps-input" />
+                </div>
+                <div class="col-span-2">
+                  <label class="ps-label">Street</label>
+                  <input v-model="form.street" placeholder="Street address" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">City</label>
+                  <input v-model="form.city" placeholder="City" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">Province</label>
+                  <input v-model="form.province" placeholder="Province" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">ZIP Code</label>
+                  <input v-model="form.zipCode" placeholder="ZIP" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">Rating (0–5)</label>
+                  <input v-model="form.rating" type="number" placeholder="e.g. 4.5" class="ps-input" />
+                </div>
               </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Contact First Name</label>
-                <input v-model="form.contactFirstName" placeholder="First name" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Contact Last Name</label>
-                <input v-model="form.contactLastName" placeholder="Last name" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Email</label>
-                <input v-model="form.email" type="email" placeholder="supplier@email.com" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Phone</label>
-                <input v-model="form.phone" placeholder="+63 9XX XXX XXXX" class="ps-input" />
-              </div>
-              <div class="col-span-2 flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Street</label>
-                <input v-model="form.street" placeholder="Street address" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">City</label>
-                <input v-model="form.city" placeholder="City" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Province</label>
-                <input v-model="form.province" placeholder="Province" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">ZIP Code</label>
-                <input v-model="form.zipCode" placeholder="ZIP" class="ps-input" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Rating (0–5)</label>
-                <input v-model="form.rating" type="number" placeholder="e.g. 4.5" class="ps-input" />
+              <div v-if="formErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                {{ formErr }}
               </div>
             </div>
-            <div v-if="formErr" class="mt-4 px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-              {{ formErr }}
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showModal = false">Cancel</button>
+              <button class="ps-btn ps-btn-primary" :disabled="saving" @click="save">
+                <i v-if="saving" class="ph ph-spinner animate-spin"></i>
+                {{ saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Supplier' }}
+              </button>
             </div>
-          </div>
-          <div class="flex justify-end gap-2.5 px-6 pb-6">
-            <button @click="showModal = false" class="ps-btn ps-btn-outline">Cancel</button>
-            <button @click="save" :disabled="saving" class="ps-btn ps-btn-primary">
-              <i v-if="saving" class="ph ph-spinner animate-spin"></i>
-              {{ saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Supplier' }}
-            </button>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

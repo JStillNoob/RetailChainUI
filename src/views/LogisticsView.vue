@@ -196,45 +196,47 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
 
     <!-- Update Modal -->
     <Teleport to="body">
-      <div v-if="showUpdate" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showUpdate = false">
-        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">Update Delivery #{{ updateItem?.deliveryId }}</h3>
-            <button @click="showUpdate = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <p class="text-sm text-slate-500 mb-4">{{ updateItem?.supplierName }} — PO-{{ updateItem?.poId }}</p>
-            <div class="grid grid-cols-2 gap-4">
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Status</label>
-                <select v-model="updateForm.status" class="ps-input">
-                  <option v-for="s in STATUSES" :key="s" :value="s">{{ s }}</option>
-                </select>
+      <Transition name="ps-modal">
+        <div v-if="showUpdate" class="ps-modal-backdrop" @click.self="showUpdate = false">
+          <div class="ps-modal-card">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">Update Delivery #{{ updateItem?.deliveryId }}</h3>
+              <button class="ps-modal-close" @click="showUpdate = false" aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
+            </div>
+            <div class="ps-modal-body">
+              <p class="text-sm text-slate-500">{{ updateItem?.supplierName }} — PO-{{ updateItem?.poId }}</p>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="ps-label">Status</label>
+                  <select v-model="updateForm.status" class="ps-input">
+                    <option v-for="s in STATUSES" :key="s" :value="s">{{ s }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="ps-label">Tracking Number</label>
+                  <input v-model="updateForm.trackingNo" placeholder="e.g. JRSPH12345" class="ps-input" />
+                </div>
+                <div v-if="updateForm.status === 'Delivered' || updateForm.status === 'Partially-Delivered'" class="col-span-2">
+                  <label class="ps-label">Actual Delivery Date</label>
+                  <input v-model="updateForm.actualDate" type="date" class="ps-input" />
+                </div>
               </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Tracking Number</label>
-                <input v-model="updateForm.trackingNo" placeholder="e.g. JRSPH12345" class="ps-input" />
-              </div>
-              <div v-if="updateForm.status === 'Delivered' || updateForm.status === 'Partially-Delivered'"
-                   class="col-span-2 flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Actual Delivery Date</label>
-                <input v-model="updateForm.actualDate" type="date" class="ps-input" />
+              <div v-if="updateErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                {{ updateErr }}
               </div>
             </div>
-            <div v-if="updateErr" class="mt-4 px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-              {{ updateErr }}
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showUpdate = false">Cancel</button>
+              <button class="ps-btn ps-btn-primary" :disabled="updating" @click="saveUpdate">
+                <i v-if="updating" class="ph ph-spinner animate-spin"></i>
+                {{ updating ? 'Saving…' : 'Save Changes' }}
+              </button>
             </div>
-          </div>
-          <div class="flex justify-end gap-2.5 px-6 pb-6">
-            <button @click="showUpdate = false" class="ps-btn ps-btn-outline">Cancel</button>
-            <button @click="saveUpdate" :disabled="updating" class="ps-btn ps-btn-primary">
-              <i v-if="updating" class="ph ph-spinner animate-spin"></i>
-              {{ updating ? 'Saving…' : 'Save Changes' }}
-            </button>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>
