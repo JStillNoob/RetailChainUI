@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   getStoreTypes, createStoreType, deleteStoreType,
   getStoreTypeTemplates, createTemplate, deleteTemplate,
@@ -88,6 +88,13 @@ async function removeTemplate(templateId: number) {
 
 const fieldTypeLabel = (v: string) => fieldTypes.find(f => f.value === v)?.label ?? v
 const fieldTypeIcon = (v: string) => v === 'date' ? 'ph ph-calendar' : v === 'number' ? 'ph ph-hash' : v === 'boolean' ? 'ph ph-toggle-right' : 'ph ph-text-t'
+
+// Pagination
+const page       = ref(1)
+const pageSize   = ref(10)
+const totalPages = computed(() => Math.max(1, Math.ceil(types.value.length / pageSize.value)))
+const paged      = computed(() => types.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
+function goTo(p: number) { if (p >= 1 && p <= totalPages.value) page.value = p }
 </script>
 
 <template>
@@ -124,7 +131,7 @@ const fieldTypeIcon = (v: string) => v === 'date' ? 'ph ph-calendar' : v === 'nu
           </tr>
         </thead>
         <tbody>
-          <tr v-for="t in types" :key="t.storeTypeId">
+          <tr v-for="t in paged" :key="t.storeTypeId">
             <td class="font-bold text-slate-800">{{ t.typeName }}</td>
             <td class="text-slate-500">{{ t.description ?? '—' }}</td>
             <td><span class="ps-tag ps-tag-slate">{{ t.tenantCount ?? 0 }}</span></td>
@@ -145,6 +152,21 @@ const fieldTypeIcon = (v: string) => v === 'date' ? 'ph ph-calendar' : v === 'nu
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination -->
+      <div v-if="!loading && types.length > 0" class="ps-pagination">
+        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(1)"><i class="ph ph-caret-double-left"></i></button>
+        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(page - 1)"><i class="ph ph-caret-left"></i></button>
+        <button v-for="p in totalPages" :key="p" :class="['ps-pg-btn', p === page && 'ps-pg-btn--active']" @click="goTo(p)">{{ p }}</button>
+        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(page + 1)"><i class="ph ph-caret-right"></i></button>
+        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(totalPages)"><i class="ph ph-caret-double-right"></i></button>
+        <span class="ps-pg-info">Showing {{ (page - 1) * pageSize + 1 }}–{{ Math.min(page * pageSize, types.length) }} of {{ types.length }} types</span>
+        <select v-model="pageSize" class="ps-pg-size" @change="page = 1">
+          <option :value="10">10</option>
+          <option :value="25">25</option>
+          <option :value="50">50</option>
+        </select>
+      </div>
     </div>
 
     <!-- Create modal -->

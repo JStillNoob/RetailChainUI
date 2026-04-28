@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getPlans, createPlan, deletePlan, getSubscriptions } from '../../services/superadmin.ts'
 
 defineOptions({ name: 'SubscriptionsView' })
@@ -32,6 +32,13 @@ async function removePlan(id: number) {
 }
 
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+
+// Pagination for subscriptions table
+const subsPage       = ref(1)
+const subsPageSize   = ref(10)
+const subsTotalPages = computed(() => Math.max(1, Math.ceil(subscriptions.value.length / subsPageSize.value)))
+const subsPaged      = computed(() => subscriptions.value.slice((subsPage.value - 1) * subsPageSize.value, subsPage.value * subsPageSize.value))
+function subsGoTo(p: number) { if (p >= 1 && p <= subsTotalPages.value) subsPage.value = p }
 </script>
 
 <template>
@@ -113,7 +120,7 @@ const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('en-US', { mon
           </tr>
         </thead>
         <tbody>
-          <tr v-for="s in subscriptions" :key="s.subscriptionId">
+          <tr v-for="s in subsPaged" :key="s.subscriptionId">
             <td class="font-semibold text-slate-800">{{ s.tenantName }}</td>
             <td class="text-slate-700">{{ s.planName }}</td>
             <td class="font-semibold text-slate-800">₱{{ Number(s.price).toLocaleString() }}</td>
@@ -123,9 +130,22 @@ const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('en-US', { mon
           </tr>
         </tbody>
       </table>
-    </div>
 
-    <!-- Create plan modal -->
+      <!-- Pagination -->
+      <div v-if="!loading && subscriptions.length > 0" class="ps-pagination">
+        <button class="ps-pg-btn" :disabled="subsPage === 1" @click="subsGoTo(1)"><i class="ph ph-caret-double-left"></i></button>
+        <button class="ps-pg-btn" :disabled="subsPage === 1" @click="subsGoTo(subsPage - 1)"><i class="ph ph-caret-left"></i></button>
+        <button v-for="p in subsTotalPages" :key="p" :class="['ps-pg-btn', p === subsPage && 'ps-pg-btn--active']" @click="subsGoTo(p)">{{ p }}</button>
+        <button class="ps-pg-btn" :disabled="subsPage === subsTotalPages" @click="subsGoTo(subsPage + 1)"><i class="ph ph-caret-right"></i></button>
+        <button class="ps-pg-btn" :disabled="subsPage === subsTotalPages" @click="subsGoTo(subsTotalPages)"><i class="ph ph-caret-double-right"></i></button>
+        <span class="ps-pg-info">Showing {{ (subsPage - 1) * subsPageSize + 1 }}–{{ Math.min(subsPage * subsPageSize, subscriptions.length) }} of {{ subscriptions.length }} subscriptions</span>
+        <select v-model="subsPageSize" class="ps-pg-size" @change="subsPage = 1">
+          <option :value="10">10</option>
+          <option :value="25">25</option>
+          <option :value="50">50</option>
+        </select>
+      </div>
+    </div>
     <Teleport to="body">
       <Transition name="ps-modal">
         <div v-if="showCreate" class="ps-modal-backdrop" @click.self="showCreate = false">

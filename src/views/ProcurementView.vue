@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
+import { getBranches } from '../services/tenant.ts'
 import { useToast } from '../composables/useToast.ts'
 
 defineOptions({ name: 'ProcurementView' })
@@ -11,6 +12,7 @@ const orders       = ref<any[]>([])
 const suppliers    = ref<any[]>([])
 const products     = ref<any[]>([])
 const statuses     = ref<any[]>([])
+const branches     = ref<any[]>([])
 const loading      = ref(true)
 const statusFilter = ref('')
 const search       = ref('')
@@ -34,6 +36,7 @@ async function loadMeta() {
     ])
     suppliers.value = sup; products.value = prod; statuses.value = stat
   } catch { /* non-critical */ }
+  try { branches.value = await getBranches() } catch { /* non-critical */ }
   if (!statuses.value.length) {
     statuses.value = [
       { statusId: 1, statusName: 'Pending' },
@@ -76,6 +79,7 @@ const poForm = ref({
   statusId:   null as number | null,
   orderDate:  new Date().toISOString().slice(0, 10),
   expectedDate: '',
+  branchId:   null as number | null,
 })
 
 interface PoItem { productId: number | null; quantity: string; unitCost: string }
@@ -101,11 +105,12 @@ async function createPo() {
       statusId:     poForm.value.statusId,
       orderDate:    poForm.value.orderDate,
       expectedDate: poForm.value.expectedDate || null,
+      branchId:     poForm.value.branchId || null,
       items: validItems.map(i => ({ productId: i.productId, quantity: parseFloat(i.quantity), unitCost: parseFloat(i.unitCost) })),
     })
     toast('Purchase order created.'); showCreate.value = false
     const pending = statuses.value.find((s: any) => s.statusName === 'Pending')
-    poForm.value = { supplierId: null, statusId: pending?.statusId ?? null, orderDate: new Date().toISOString().slice(0, 10), expectedDate: '' }
+    poForm.value = { supplierId: null, statusId: pending?.statusId ?? null, orderDate: new Date().toISOString().slice(0, 10), expectedDate: '', branchId: null }
     items.value = [{ productId: null, quantity: '', unitCost: '' }]
     await load()
   } catch (e: any) {
@@ -270,6 +275,13 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                   <label class="ps-label">Expected Delivery</label>
                   <input v-model="poForm.expectedDate" type="date" class="ps-input" />
                 </div>
+              </div>
+              <div>
+                <label class="ps-label">Branch <span style="color:#9CA3AF;font-weight:400">(optional — links stock receipt to a specific branch)</span></label>
+                <select v-model="poForm.branchId" class="ps-input">
+                  <option :value="null">— No specific branch —</option>
+                  <option v-for="b in branches" :key="b.branchId" :value="b.branchId">{{ b.branchName }}</option>
+                </select>
               </div>
 
               <div class="flex items-center justify-between">

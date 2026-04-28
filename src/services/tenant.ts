@@ -24,3 +24,39 @@ export const getProductAttrValues = (productId: number) =>
 
 export const saveProductAttrValues = (productId: number, values: object[]) =>
   api.post(`/tenant/products/${productId}/attr-values`, { values }).then(r => r.data)
+
+// ── Inventory / Stock In ─────────────────────────────────────────────────────
+export const getInventory = (params: Record<string, unknown> = {}) =>
+  api.get('/warehouse/inventory', { params }).then(r => r.data)
+
+export const stockIn = (data: { productId: number; quantity: number; note?: string; location?: string; branchId?: number }) =>
+  api.post('/warehouse/inventory/adjust', { ...data, adjustmentType: 'StockIn' }).then(r => r.data)
+
+// ── Branches ─────────────────────────────────────────────────────────────────
+export const getBranches = () =>
+  api.get('/tenant/branches').then(r => r.data)
+
+export const createBranch = (data: { branchName: string; address?: string }) =>
+  api.post('/tenant/branches', data).then(r => r.data)
+
+export const updateBranch = (id: number, data: { branchName: string; address?: string; status?: string }) =>
+  api.put(`/tenant/branches/${id}`, data).then(r => r.data)
+
+export const deleteBranch = (id: number) =>
+  api.delete(`/tenant/branches/${id}`).then(r => r.data)
+
+export const getBranchInventory = (branchId: number, lowStock?: boolean) =>
+  api.get(`/tenant/branches/${branchId}/inventory`, { params: { lowStock } }).then(r => r.data)
+
+export const getBranchStockOverview = () =>
+  api.get('/tenant/branches/stock-overview').then(r => r.data)
+
+export const addProductToBranch = (branchId: number, data: { productId: number; initialQty?: number; minQty?: number }) =>
+  api.post(`/tenant/branches/${branchId}/inventory`, data).then(r => r.data)
+
+export const setMinQty = (branchId: number, inventoryId: number, minQty: number) =>
+  api.patch(`/tenant/branches/${branchId}/inventory/${inventoryId}/min-qty`, { minQty }).then(r => r.data)
+
+// ── Suppliers ────────────────────────────────────────────────────────────────
+export const getSuppliers = () =>
+  api.get('/tenant/suppliers').then(r => r.data)

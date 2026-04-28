@@ -36,9 +36,11 @@ const NotificationsView    = () => import('../views/NotificationsView.vue')
 const ProcurementView      = () => import('../views/ProcurementView.vue')
 const InventoryView        = () => import('../views/InventoryView.vue')
 const ReceivingView        = () => import('../views/ReceivingView.vue')
+const StockInView          = () => import('../views/StockInView.vue')
 const LogisticsView        = () => import('../views/LogisticsView.vue')
 const PosView              = () => import('../views/PosView.vue')
 const SalesHistoryView     = () => import('../views/SalesHistoryView.vue')
+const BranchesView         = () => import('../views/BranchesView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -113,6 +115,7 @@ const router = createRouter({
         { path: 'roles',          name: 'roles',          component: RolesView,              meta: { title: 'Roles — RetailChain' } },
         { path: 'products',       name: 'products',       component: ProductsView,           meta: { title: 'Products — RetailChain' } },
         { path: 'suppliers',      name: 'suppliers',      component: SuppliersView,          meta: { title: 'Suppliers — RetailChain' } },
+        { path: 'branches',       name: 'branches',       component: BranchesView,           meta: { title: 'Branch Management — RetailChain' } },
         { path: 'analytics',      name: 'analytics',      component: TenantAnalyticsView,    meta: { title: 'Analytics — RetailChain' } },
         { path: 'audit',          name: 'audit',          component: TenantAuditView,        meta: { title: 'Audit Log — RetailChain' } },
         { path: 'notifications',  name: 'notifications',  component: NotificationsView,      meta: { title: 'Notifications — RetailChain' } },
@@ -124,6 +127,7 @@ const router = createRouter({
         // ── WarehouseStaff ───────────────────────────────────────────────
         { path: 'inventory',      name: 'inventory',      component: InventoryView,          meta: { title: 'Inventory — RetailChain' } },
         { path: 'receiving',      name: 'receiving',      component: ReceivingView,          meta: { title: 'Receiving — RetailChain' } },
+        { path: 'stock-in',       name: 'stock-in',       component: StockInView,            meta: { title: 'Stock In — RetailChain' } },
         { path: 'forecast',       name: 'forecast',       component: ForecastView,           meta: { title: 'Demand Forecast — RetailChain' } },
 
         // ── LogisticsStaff ───────────────────────────────────────────────

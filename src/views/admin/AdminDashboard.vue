@@ -15,8 +15,8 @@ interface Overview {
 }
 
 const overview = ref<Overview | null>(null)
-const loading  = ref(true)
-const error    = ref('')
+const loading = ref(true)
+const error = ref('')
 
 onMounted(async () => {
   try {
@@ -31,27 +31,153 @@ onMounted(async () => {
 const formatCurrency = (v: number) =>
   '₱ ' + new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(v)
 
-const kpis = computed(() => overview.value ? [
-  { icon: 'ph-fill ph-buildings',                bg: 'bg-blue-50',   color: 'text-blue-500',   val: overview.value.totalTenants.toLocaleString(),       lbl: 'Total Tenants',        sub: `+${overview.value.newThisMonth} this month`,        trend: 'up',   pct: `+${overview.value.newThisMonth}` },
-  { icon: 'ph-fill ph-check-circle',             bg: 'bg-emerald-50',color: 'text-emerald-500',val: overview.value.activeTenants.toLocaleString(),      lbl: 'Active Tenants',       sub: `${overview.value.suspendedTenants} suspended`,       trend: 'up',   pct: 'OK' },
-  { icon: 'ph-fill ph-credit-card',              bg: 'bg-purple-50', color: 'text-purple-500', val: overview.value.activeSubscriptions.toLocaleString(),lbl: 'Active Subscriptions', sub: `${overview.value.expiredSubscriptions} expired`,    trend: 'flat', pct: '' },
-  { icon: 'ph-fill ph-currency-circle-dollar',   bg: 'bg-amber-50',  color: 'text-amber-500',  val: formatCurrency(overview.value.monthlyRevenue),      lbl: 'Monthly Revenue',      sub: 'Active subscriptions',                                trend: 'up',   pct: '+12%' },
-] : [])
+// Sparkline geometry. Fixed y-scale shared across all charts so flat data
+// stays visually flat instead of being auto-stretched into a sawtooth.
+const SP_W = 320,
+  SP_H = 80,
+  SP_PAD = 6
+const Y_MIN = 0,
+  Y_MAX = 12
+function spark(data: number[]) {
+  const stepX = (SP_W - SP_PAD * 2) / (data.length - 1)
+  return data
+    .map((v, i) => {
+      const x = SP_PAD + i * stepX
+      const t = (v - Y_MIN) / (Y_MAX - Y_MIN)
+      const y = SP_H - SP_PAD - t * (SP_H - SP_PAD * 2)
+      return `${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .join(' ')
+}
+function sparkArea(data: number[]) {
+  const pts = spark(data)
+  const last = SP_W - SP_PAD,
+    bottom = SP_H - SP_PAD
+  return `M${pts.split(' ').join(' L')} L${last.toFixed(1)},${bottom} L${SP_PAD},${bottom} Z`
+}
+
+const D1 = [4, 4, 5, 5, 4, 5, 6, 6, 5, 6, 7, 7, 6, 7, 7, 8, 8, 7, 8, 9]
+const D1m = [5, 5, 4, 5, 5, 6, 5, 5, 6, 6, 5, 6, 6, 7, 6, 7, 7, 6, 7, 8]
+const D2 = [5, 5, 6, 6, 6, 7, 7, 6, 7, 7, 8, 7, 8, 8, 7, 8, 8, 9, 8, 9]
+const D2m = [6, 6, 5, 6, 7, 6, 7, 7, 6, 7, 7, 8, 7, 7, 8, 7, 8, 8, 7, 8]
+const D3 = [4, 5, 4, 4, 5, 4, 5, 5, 4, 5, 5, 4, 5, 5, 5, 4, 5, 5, 4, 5]
+const D3m = [5, 4, 5, 5, 4, 5, 4, 5, 5, 4, 5, 5, 4, 5, 5, 5, 4, 5, 5, 4]
+const D4 = [3, 4, 4, 5, 5, 5, 6, 6, 5, 6, 6, 7, 7, 6, 7, 7, 8, 8, 7, 8]
+const D4m = [4, 5, 4, 5, 5, 6, 5, 6, 6, 5, 6, 6, 7, 6, 7, 7, 6, 7, 7, 7]
+
+const kpis = computed(() =>
+  overview.value
+    ? [
+        {
+          title: 'Total Tenants',
+          label: 'ORGANIZATIONS',
+          val: overview.value.totalTenants.toLocaleString(),
+          trend: 'up',
+          pct: `+${overview.value.newThisMonth}`,
+          chart: spark(D1),
+          chartFill: sparkArea(D1),
+          chartMuted: spark(D1m),
+          link: '/admin/tenants',
+        },
+        {
+          title: 'Active Tenants',
+          label: 'ACTIVE',
+          val: overview.value.activeTenants.toLocaleString(),
+          trend: 'up',
+          pct: 'OK',
+          chart: spark(D2),
+          chartFill: sparkArea(D2),
+          chartMuted: spark(D2m),
+          link: '/admin/tenants',
+        },
+        {
+          title: 'Active Subscriptions',
+          label: 'BILLING',
+          val: overview.value.activeSubscriptions.toLocaleString(),
+          trend: 'flat',
+          pct: '—',
+          chart: spark(D3),
+          chartFill: sparkArea(D3),
+          chartMuted: spark(D3m),
+          link: '/admin/subscriptions',
+        },
+        {
+          title: 'Monthly Revenue',
+          label: 'REVENUE',
+          val: formatCurrency(overview.value.monthlyRevenue),
+          trend: 'up',
+          pct: '+12%',
+          chart: spark(D4),
+          chartFill: sparkArea(D4),
+          chartMuted: spark(D4m),
+          link: '/admin/subscriptions',
+        },
+      ]
+    : [],
+)
 
 const quickLinks = [
-  { to: '/admin/tenants',       icon: 'ph-fill ph-buildings',     label: 'Tenants',         desc: 'Manage tenant orgs',    color: 'text-blue-500',   bg: 'bg-blue-50' },
-  { to: '/admin/subscriptions', icon: 'ph-fill ph-credit-card',   label: 'Billing',         desc: 'Plans & subscriptions', color: 'text-purple-500', bg: 'bg-purple-50' },
-  { to: '/admin/store-types',   icon: 'ph-fill ph-storefront',    label: 'Store Types',     desc: 'Categories & templates',color: 'text-amber-500',  bg: 'bg-amber-50' },
-  { to: '/admin/analytics',     icon: 'ph-fill ph-chart-bar',     label: 'Analytics',       desc: 'Platform metrics',      color: 'text-emerald-500',bg: 'bg-emerald-50' },
-  { to: '/admin/notifications', icon: 'ph-fill ph-bell',          label: 'Notifications',   desc: 'Broadcast messages',    color: 'text-rose-500',   bg: 'bg-rose-50' },
-  { to: '/admin/audit-logs',    icon: 'ph-fill ph-clipboard-text',label: 'Audit Logs',      desc: 'Activity history',      color: 'text-sky-500',    bg: 'bg-sky-50' },
-  { to: '/admin/accounts',      icon: 'ph-fill ph-users-three',   label: 'Admin Accounts',  desc: 'Super-admin team',      color: 'text-indigo-500', bg: 'bg-indigo-50' },
+  {
+    to: '/admin/tenants',
+    icon: 'ph-fill ph-buildings',
+    label: 'Tenants',
+    desc: 'Manage tenant orgs',
+    color: 'text-blue-500',
+    bg: 'bg-blue-50',
+  },
+  {
+    to: '/admin/subscriptions',
+    icon: 'ph-fill ph-credit-card',
+    label: 'Billing',
+    desc: 'Plans & subscriptions',
+    color: 'text-purple-500',
+    bg: 'bg-purple-50',
+  },
+  {
+    to: '/admin/store-types',
+    icon: 'ph-fill ph-storefront',
+    label: 'Store Types',
+    desc: 'Categories & templates',
+    color: 'text-amber-500',
+    bg: 'bg-amber-50',
+  },
+  {
+    to: '/admin/analytics',
+    icon: 'ph-fill ph-chart-bar',
+    label: 'Analytics',
+    desc: 'Platform metrics',
+    color: 'text-emerald-500',
+    bg: 'bg-emerald-50',
+  },
+  {
+    to: '/admin/notifications',
+    icon: 'ph-fill ph-bell',
+    label: 'Notifications',
+    desc: 'Broadcast messages',
+    color: 'text-rose-500',
+    bg: 'bg-rose-50',
+  },
+  {
+    to: '/admin/audit-logs',
+    icon: 'ph-fill ph-clipboard-text',
+    label: 'Audit Logs',
+    desc: 'Activity history',
+    color: 'text-sky-500',
+    bg: 'bg-sky-50',
+  },
+  {
+    to: '/admin/accounts',
+    icon: 'ph-fill ph-users-three',
+    label: 'Admin Accounts',
+    desc: 'Super-admin team',
+    color: 'text-indigo-500',
+    bg: 'bg-indigo-50',
+  },
 ]
 </script>
 
 <template>
   <div class="flex flex-col gap-5 max-w-[1280px] mx-auto w-full">
-
     <!-- Header -->
     <div class="flex items-center justify-between gap-3 flex-wrap">
       <div>
@@ -61,47 +187,128 @@ const quickLinks = [
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div v-for="i in 4" :key="i" class="h-28 bg-slate-100 rounded-xl animate-pulse"></div>
+    <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div
+        v-for="i in 4"
+        :key="i"
+        class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6"
+      >
+        <div class="flex items-start justify-between">
+          <div class="h-5 w-28 bg-slate-100 rounded-md animate-pulse"></div>
+          <div class="h-5 w-5 bg-slate-100 rounded animate-pulse"></div>
+        </div>
+        <div class="h-3 w-16 bg-slate-100 rounded mt-3 animate-pulse"></div>
+        <div class="flex items-center gap-2 mt-3">
+          <div class="h-9 w-24 bg-slate-100 rounded-lg animate-pulse"></div>
+          <div class="h-6 w-12 bg-slate-100 rounded-full animate-pulse"></div>
+        </div>
+        <div class="h-10 w-full bg-slate-50 rounded-lg mt-5 animate-pulse"></div>
+      </div>
     </div>
 
     <!-- Error -->
-    <div v-else-if="error" class="bg-white rounded-xl border border-rose-200 p-6 flex items-center gap-3 text-rose-600">
+    <div
+      v-else-if="error"
+      class="bg-white rounded-xl border border-rose-200 p-6 flex items-center gap-3 text-rose-600"
+    >
       <i class="ph-fill ph-warning-circle text-2xl"></i> {{ error }}
     </div>
 
     <template v-else-if="overview">
       <!-- KPI cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div v-for="k in kpis" :key="k.lbl"
-          class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow transition-shadow">
-          <div class="flex items-start justify-between gap-2">
-            <div :class="['inline-flex items-center justify-center w-9 h-9 rounded-lg', k.bg, k.color]">
-              <i :class="[k.icon, 'text-lg']"></i>
-            </div>
-            <span v-if="k.pct" :class="[
-              'inline-flex items-center gap-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full',
-              k.trend === 'up'   ? 'bg-emerald-50 text-emerald-700' :
-              k.trend === 'down' ? 'bg-rose-50 text-rose-700' :
-                                   'bg-slate-100 text-slate-600',
-            ]">
-              <i :class="k.trend === 'up' ? 'ph ph-arrow-up' : k.trend === 'down' ? 'ph ph-arrow-down' : 'ph ph-minus'" class="text-[10px]"></i>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <router-link
+          v-for="(k, idx) in kpis"
+          :key="k.title"
+          :to="k.link"
+          class="group relative flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 p-6"
+        >
+          <!-- Header: title + kebab -->
+          <div class="flex items-start justify-between">
+            <h3 class="text-base font-bold text-slate-900 leading-tight">{{ k.title }}</h3>
+            <button
+              type="button"
+              @click.prevent
+              class="text-slate-400 hover:text-slate-600 transition-colors -mr-1.5"
+              aria-label="More options"
+            >
+              <i class="ph ph-dots-three text-xl"></i>
+            </button>
+          </div>
+
+          <!-- Tiny uppercase label -->
+          <p class="text-[11px] font-semibold text-slate-400 tracking-[0.08em] mt-3">
+            {{ k.label }}
+          </p>
+
+          <!-- Big value + inline badge -->
+          <div class="flex items-center gap-2.5 mt-2">
+            <p class="text-3xl font-bold text-slate-900 tracking-tight leading-none">{{ k.val }}</p>
+            <span
+              :class="[
+                'inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full',
+                k.trend === 'up'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : k.trend === 'down'
+                    ? 'bg-rose-100 text-rose-700'
+                    : 'bg-slate-100 text-slate-500',
+              ]"
+            >
               {{ k.pct }}
             </span>
           </div>
-          <p class="text-xl font-bold text-slate-900 mt-3 leading-none">{{ k.val }}</p>
-          <p class="text-xs text-slate-500 mt-1.5">{{ k.lbl }}</p>
-          <p class="text-[11px] text-slate-400 mt-0.5">{{ k.sub }}</p>
-        </div>
+
+          <!-- Sparkline -->
+          <svg class="block w-full h-10 mt-5" viewBox="0 0 320 80" preserveAspectRatio="none">
+            <defs>
+              <linearGradient :id="`spark-grad-${idx}`" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.18" />
+                <stop offset="100%" stop-color="#7c3aed" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+            <polyline
+              :points="k.chartMuted"
+              fill="none"
+              stroke="#e2e8f0"
+              stroke-width="1.25"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              vector-effect="non-scaling-stroke"
+            />
+            <path :d="k.chartFill" :fill="`url(#spark-grad-${idx})`" />
+            <polyline
+              :points="k.chart"
+              fill="none"
+              stroke="#7c3aed"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              vector-effect="non-scaling-stroke"
+            />
+          </svg>
+        </router-link>
       </div>
 
-      <!-- Quick Actions — same card style as KPIs, grid of icon+label tiles -->
+      <!-- Quick Actions -->
       <div>
-        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Quick Actions</p>
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+          Quick Actions
+        </p>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-          <router-link v-for="link in quickLinks" :key="link.to" :to="link.to"
-            class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow hover:border-slate-300 transition-all flex flex-col items-start gap-2.5 group">
-            <div :class="['inline-flex items-center justify-center w-9 h-9 rounded-lg', link.bg, link.color, 'group-hover:scale-105 transition-transform']">
+          <router-link
+            v-for="link in quickLinks"
+            :key="link.to"
+            :to="link.to"
+            class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow hover:border-slate-300 transition-all flex flex-col items-start gap-2.5 group"
+          >
+            <div
+              :class="[
+                'inline-flex items-center justify-center w-9 h-9 rounded-lg',
+                link.bg,
+                link.color,
+                'group-hover:scale-105 transition-transform',
+              ]"
+            >
               <i :class="[link.icon, 'text-lg']"></i>
             </div>
             <div>

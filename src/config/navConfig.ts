@@ -35,6 +35,14 @@ export const navConfig: Record<string, NavGroup[]> = {
         { icon: 'ph-shield-check',    label: 'Roles',       to: '/dashboard/roles',        id: 'nav-roles' },
         { icon: 'ph-package',         label: 'Products',    to: '/dashboard/products',     id: 'nav-products' },
         { icon: 'ph-users-three',     label: 'Suppliers',   to: '/dashboard/suppliers',    id: 'nav-suppliers' },
+        { icon: 'ph-git-branch',      label: 'Branches',    to: '/dashboard/branches',     id: 'nav-branches' },
+      ],
+    },
+    {
+      groupLabel: 'Operations',
+      items: [
+        { icon: 'ph-arrow-circle-down', label: 'Stock In',    to: '/dashboard/stock-in', id: 'nav-stock-in' },
+        { icon: 'ph-cash-register',     label: 'Cashiering',  to: '/dashboard/pos',      id: 'nav-pos' },
       ],
     },
     {

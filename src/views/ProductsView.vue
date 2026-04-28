@@ -63,7 +63,6 @@ const prodForm = ref({
   productName: '',
   sku:         '',
   price:       '',
-  quantity:    '',
   description: '',
 })
 
@@ -72,7 +71,7 @@ function openAdd() {
     alert('Free Trial Limit: You can only add up to 10 products. Please upgrade your plan.')
     return
   }
-  prodForm.value = { productName: '', sku: '', price: '', quantity: '', description: '' }
+  prodForm.value = { productName: '', sku: '', price: '', description: '' }
   attrValues.value = {}
   showAdd.value = true
 }
@@ -83,8 +82,7 @@ async function submitProduct() {
   try {
     const created = await createProduct({
       ...prodForm.value,
-      price:    Number(prodForm.value.price)    || 0,
-      quantity: Number(prodForm.value.quantity) || 0,
+      price: Number(prodForm.value.price) || 0,
     })
 
     const productId = created.productId ?? created.id
@@ -256,13 +254,9 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                     <label class="ps-label">SKU / Barcode</label>
                     <input v-model="prodForm.sku" placeholder="e.g. SAM-S24-128" class="ps-input" />
                   </div>
-                  <div class="col-span-2">
+                  <div>
                     <label class="ps-label">Unit Price (₱)</label>
                     <input v-model="prodForm.price" type="number" min="0" step="0.01" placeholder="0.00" class="ps-input" />
-                  </div>
-                  <div>
-                    <label class="ps-label">Stock Quantity</label>
-                    <input v-model="prodForm.quantity" type="number" min="0" placeholder="0" class="ps-input" />
                   </div>
                   <div>
                     <label class="ps-label">Description</label>
