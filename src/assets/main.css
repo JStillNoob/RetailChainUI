@@ -360,57 +360,56 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.10);
 }
 
-/* Buttons — !important to defeat Tailwind preflight & PrimeVue base styles */
+/* Buttons */
 .ps-btn {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 8px !important;
-  height: 38px !important;
-  padding: 0 16px !important;
-  border-radius: 8px !important;
-  font-family: var(--font-family) !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  line-height: 1 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
   cursor: pointer;
-  border: 1px solid transparent !important;
+  border: 1px solid transparent;
   transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
   white-space: nowrap;
   text-decoration: none;
 }
 .ps-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .ps-btn-primary {
-  background: #3B82F6 !important;
-  color: #FFFFFF !important;
-  border-color: #3B82F6 !important;
+  background: #3B82F6;
+  color: #FFFFFF;
+  border-color: #3B82F6;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 .ps-btn-primary:hover:not(:disabled) {
-  background: #2563EB !important;
-  border-color: #2563EB !important;
+  background: #2563EB;
+  border-color: #2563EB;
 }
 .ps-btn-dark {
-  background: #0F172A !important;
-  color: #FFFFFF !important;
-  border-color: #0F172A !important;
+  background: #0F172A;
+  color: #FFFFFF;
+  border-color: #0F172A;
 }
 .ps-btn-dark:hover:not(:disabled) {
-  background: #1E293B !important;
-  border-color: #1E293B !important;
+  background: #1E293B;
+  border-color: #1E293B;
 }
 .ps-btn-outline {
-  background: #FFFFFF !important;
-  color: #475569 !important;
-  border-color: #E2E8F0 !important;
+  background: #FFFFFF;
+  color: #475569;
+  border-color: #E2E8F0;
 }
 .ps-btn-outline:hover:not(:disabled) {
-  background: #F8FAFC !important;
-  color: #0F172A !important;
-  border-color: #CBD5E1 !important;
+  background: #F8FAFC;
+  color: #0F172A;
+  border-color: #CBD5E1;
 }
-/* Smaller variants */
-.ps-btn-sm { height: 30px !important; padding: 0 12px !important; font-size: 12px !important; }
+.ps-btn-sm { height: 30px; padding: 0 12px; font-size: 12px; }
 
 /* Datatable */
 .ps-table {
@@ -566,58 +565,58 @@ a { color: inherit; text-decoration: none; }
 .ps-page-title  { font-size: 22px; font-weight: 800; color: #0F172A; letter-spacing: -0.02em; }
 .ps-page-sub    { font-size: 13px; color: #94A3B8; margin-top: 2px; }
 
-/* Form input — !important to defeat Tailwind preflight & PrimeVue base styles */
+/* Form input */
 .ps-input,
 textarea.ps-input,
 select.ps-input {
-  display: block !important;
-  width: 100% !important;
-  height: 38px !important;
-  padding: 0 12px !important;
-  border: 1px solid #E2E8F0 !important;
-  border-radius: 8px !important;
-  font-family: var(--font-family) !important;
-  font-size: 13px !important;
-  font-weight: 400 !important;
-  line-height: 1.4 !important;
-  color: #0F172A !important;
-  background: #FFFFFF !important;
-  outline: none !important;
-  box-shadow: none !important;
+  display: block;
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #0F172A;
+  background: #FFFFFF;
+  outline: none;
+  box-shadow: none;
   transition: border-color 0.15s, box-shadow 0.15s;
   -webkit-appearance: none;
   appearance: none;
 }
 textarea.ps-input {
-  height: auto !important;
-  min-height: 80px !important;
-  padding: 10px 12px !important;
-  line-height: 1.5 !important;
+  height: auto;
+  min-height: 80px;
+  padding: 10px 12px;
+  line-height: 1.5;
   resize: vertical;
 }
 select.ps-input {
-  padding-right: 32px !important;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") !important;
-  background-repeat: no-repeat !important;
-  background-position: right 10px center !important;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
 }
 .ps-input:focus,
 textarea.ps-input:focus,
 select.ps-input:focus {
-  border-color: #3B82F6 !important;
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.12) !important;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
 }
-.ps-input::placeholder { color: #94A3B8 !important; opacity: 1 !important; }
-.ps-input:disabled { background: #F8FAFC !important; color: #94A3B8 !important; cursor: not-allowed; }
+.ps-input::placeholder { color: #94A3B8; opacity: 1; }
+.ps-input:disabled { background: #F8FAFC; color: #94A3B8; cursor: not-allowed; }
 
 /* Form label used inside modals */
 .ps-label {
-  display: block !important;
-  font-size: 12px !important;
-  font-weight: 600 !important;
-  color: #334155 !important;
-  margin-bottom: 6px !important;
-  line-height: 1.3 !important;
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+  line-height: 1.3;
 }
 
 /* Modal primitives — used by AppModal.vue and inline modals */
@@ -653,12 +652,12 @@ select.ps-input:focus {
   border-bottom: 1px solid #F1F5F9;
 }
 .ps-modal-title {
-  font-size: 15px !important;
-  font-weight: 700 !important;
-  color: #0F172A !important;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0F172A;
   letter-spacing: -0.01em;
-  margin: 0 !important;
-  line-height: 1.3 !important;
+  margin: 0;
+  line-height: 1.3;
 }
 .ps-modal-close {
   width: 28px;
