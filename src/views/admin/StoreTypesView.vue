@@ -149,31 +149,32 @@ const fieldTypeIcon = (v: string) => v === 'date' ? 'ph ph-calendar' : v === 'nu
 
     <!-- Create modal -->
     <Teleport to="body">
-      <div v-if="showCreate" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-5"
-           @click.self="showCreate = false">
-        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-          <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">Add Store Type</h3>
-            <button @click="showCreate = false" class="text-slate-400 hover:text-slate-700 text-xl"><i class="ph ph-x"></i></button>
-          </div>
-          <div class="p-6">
-            <div class="flex flex-col gap-4">
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Type Name</label>
+      <Transition name="ps-modal">
+        <div v-if="showCreate" class="ps-modal-backdrop" @click.self="showCreate = false">
+          <div class="ps-modal-card">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">Add Store Type</h3>
+              <button class="ps-modal-close" @click="showCreate = false" aria-label="Close">
+                <i class="ph ph-x"></i>
+              </button>
+            </div>
+            <div class="ps-modal-body">
+              <div>
+                <label class="ps-label">Type Name</label>
                 <input v-model="form.typeName" placeholder="e.g. Electronics" class="ps-input" />
               </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-semibold text-slate-700">Description</label>
+              <div>
+                <label class="ps-label">Description</label>
                 <input v-model="form.description" placeholder="Brief description…" class="ps-input" />
               </div>
             </div>
-          </div>
-          <div class="flex justify-end gap-2.5 px-6 pb-6">
-            <button @click="showCreate = false" class="ps-btn ps-btn-outline">Cancel</button>
-            <button @click="submit" class="ps-btn ps-btn-primary">Add Store Type</button>
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showCreate = false">Cancel</button>
+              <button class="ps-btn ps-btn-primary" @click="submit">Add Store Type</button>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
 
     <!-- Slide-over template panel -->
@@ -272,4 +273,11 @@ const fieldTypeIcon = (v: string) => v === 'date' ? 'ph ph-calendar' : v === 'nu
 .panel-enter-from, .panel-leave-to { opacity: 0; }
 .panel-enter-from > div:last-child,
 .panel-leave-to > div:last-child { transform: translateX(100%); }
+
+.ps-modal-enter-active, .ps-modal-leave-active { transition: opacity 0.18s ease; }
+.ps-modal-enter-active .ps-modal-card,
+.ps-modal-leave-active .ps-modal-card { transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
+.ps-modal-enter-from, .ps-modal-leave-to { opacity: 0; }
+.ps-modal-enter-from .ps-modal-card,
+.ps-modal-leave-to .ps-modal-card { transform: scale(0.97) translateY(8px); }
 </style>
