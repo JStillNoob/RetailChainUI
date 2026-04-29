@@ -87,7 +87,6 @@
 html, body {
   height: 100%;
   font-family: var(--font-family);
-  font-size: 14px;
   color: var(--color-brand-dark);
   background: var(--color-bg);
   -webkit-font-smoothing: antialiased;
