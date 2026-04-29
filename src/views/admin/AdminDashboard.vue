@@ -76,7 +76,6 @@ const kpis = computed(() => {
   return [
     {
       title: 'Total Tenants',
-      label: 'ORGANIZATIONS',
       val: o.totalTenants.toLocaleString(),
       trend: o.newThisMonth > 0 ? 'up' : 'flat',
       pct: o.newThisMonth > 0 ? `+${o.newThisMonth} new` : null,
@@ -87,7 +86,6 @@ const kpis = computed(() => {
     },
     {
       title: 'Active Tenants',
-      label: 'ACTIVE',
       val: o.activeTenants.toLocaleString(),
       trend: activePct !== null && activePct >= 90 ? 'up' : 'flat',
       pct: activePct !== null ? `${activePct}% active` : null,
@@ -98,7 +96,6 @@ const kpis = computed(() => {
     },
     {
       title: 'Active Subscriptions',
-      label: 'BILLING',
       val: o.activeSubscriptions.toLocaleString(),
       trend: o.expiredSubscriptions > 0 ? 'down' : 'flat',
       pct: o.expiredSubscriptions > 0 ? `${o.expiredSubscriptions} expired` : null,
@@ -109,7 +106,6 @@ const kpis = computed(() => {
     },
     {
       title: 'Monthly Revenue',
-      label: 'REVENUE',
       val: formatCurrency(o.monthlyRevenue),
       trend: 'flat',
       pct: null,
@@ -196,18 +192,16 @@ const quickLinks = [
       <div
         v-for="i in 4"
         :key="i"
-        class="flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm pt-6 pb-5 min-h-[210px]"
+        class="flex flex-col bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden"
       >
-        <div class="flex items-start justify-between px-6">
-          <div class="h-5 w-28 bg-slate-100 rounded-md animate-pulse"></div>
-          <div class="h-5 w-5 bg-slate-100 rounded animate-pulse"></div>
+        <div class="flex flex-col gap-3 px-6 pt-6 pb-5">
+          <div class="h-3 w-24 bg-slate-100 rounded animate-pulse"></div>
+          <div class="flex items-center gap-2">
+            <div class="h-9 w-24 bg-slate-100 rounded animate-pulse"></div>
+            <div class="h-5 w-16 bg-slate-100 rounded-full animate-pulse"></div>
+          </div>
         </div>
-        <div class="h-3 w-16 bg-slate-100 rounded mt-4 animate-pulse mx-6"></div>
-        <div class="flex items-center gap-2 mt-2 px-6">
-          <div class="h-8 w-20 bg-slate-100 rounded animate-pulse"></div>
-          <div class="h-5 w-16 bg-slate-100 rounded-full animate-pulse"></div>
-        </div>
-        <div class="h-12 mx-4 mt-auto bg-slate-50 rounded animate-pulse"></div>
+        <div class="h-14 mt-auto bg-slate-50 animate-pulse"></div>
       </div>
     </div>
 
@@ -226,49 +220,36 @@ const quickLinks = [
           v-for="(k, idx) in kpis"
           :key="k.title"
           :to="k.link"
-          class="group relative flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 pt-6 pb-5 min-h-[210px]"
+          class="group relative flex flex-col bg-white rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 overflow-hidden"
         >
-          <!-- Header: title + kebab -->
-          <div class="flex items-start justify-between px-6">
-            <h3 class="text-base font-bold text-slate-900 leading-tight">{{ k.title }}</h3>
-            <button
-              type="button"
-              @click.prevent
-              class="text-slate-400 hover:text-slate-600 transition-colors -mr-1.5"
-              aria-label="More options"
-            >
-              <i class="ph ph-dots-three text-xl"></i>
-            </button>
+          <!-- Top section: title + value + delta -->
+          <div class="flex flex-col gap-3 px-6 pt-6 pb-5">
+            <p class="text-[11px] font-semibold text-slate-400 tracking-[0.1em] uppercase">
+              {{ k.title }}
+            </p>
+            <div class="flex items-baseline gap-3 flex-wrap">
+              <p class="text-[34px] font-bold text-slate-900 tracking-tight leading-none">{{ k.val }}</p>
+              <span
+                v-if="k.pct"
+                :class="[
+                  'inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap',
+                  k.trend === 'up'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : k.trend === 'down'
+                      ? 'bg-rose-100 text-rose-700'
+                      : 'bg-slate-100 text-slate-500',
+                ]"
+              >
+                {{ k.pct }}
+              </span>
+            </div>
           </div>
 
-          <!-- Tiny uppercase label -->
-          <p class="text-[11px] font-semibold text-slate-400 tracking-[0.08em] mt-4 px-6">
-            {{ k.label }}
-          </p>
-
-          <!-- Big value + inline badge -->
-          <div class="flex items-center gap-2.5 mt-2 px-6">
-            <p class="text-[32px] font-bold text-slate-900 tracking-tight leading-none">{{ k.val }}</p>
-            <span
-              v-if="k.pct"
-              :class="[
-                'inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap',
-                k.trend === 'up'
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : k.trend === 'down'
-                    ? 'bg-rose-100 text-rose-700'
-                    : 'bg-slate-100 text-slate-500',
-              ]"
-            >
-              {{ k.pct }}
-            </span>
-          </div>
-
-          <!-- Sparkline pinned to the bottom -->
-          <svg class="block w-full h-12 mt-auto px-4" viewBox="0 0 320 80" preserveAspectRatio="none">
+          <!-- Sparkline anchored to the bottom edge -->
+          <svg class="block w-full h-14 mt-auto" viewBox="0 0 320 80" preserveAspectRatio="none">
             <defs>
               <linearGradient :id="`spark-grad-${idx}`" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.18" />
+                <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.16" />
                 <stop offset="100%" stop-color="#7c3aed" stop-opacity="0" />
               </linearGradient>
             </defs>
