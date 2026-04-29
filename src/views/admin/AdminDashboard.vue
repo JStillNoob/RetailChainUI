@@ -196,18 +196,18 @@ const quickLinks = [
       <div
         v-for="i in 4"
         :key="i"
-        class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6"
+        class="flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm pt-6 pb-5 min-h-[210px]"
       >
-        <div class="flex items-start justify-between">
+        <div class="flex items-start justify-between px-6">
           <div class="h-5 w-28 bg-slate-100 rounded-md animate-pulse"></div>
           <div class="h-5 w-5 bg-slate-100 rounded animate-pulse"></div>
         </div>
-        <div class="h-3 w-16 bg-slate-100 rounded mt-3 animate-pulse"></div>
-        <div class="flex items-center gap-2 mt-3">
-          <div class="h-9 w-24 bg-slate-100 rounded-lg animate-pulse"></div>
-          <div class="h-6 w-12 bg-slate-100 rounded-full animate-pulse"></div>
+        <div class="h-3 w-16 bg-slate-100 rounded mt-4 animate-pulse mx-6"></div>
+        <div class="flex items-center gap-2 mt-2 px-6">
+          <div class="h-8 w-20 bg-slate-100 rounded animate-pulse"></div>
+          <div class="h-5 w-16 bg-slate-100 rounded-full animate-pulse"></div>
         </div>
-        <div class="h-10 w-full bg-slate-50 rounded-lg mt-5 animate-pulse"></div>
+        <div class="h-12 mx-4 mt-auto bg-slate-50 rounded animate-pulse"></div>
       </div>
     </div>
 
@@ -226,10 +226,10 @@ const quickLinks = [
           v-for="(k, idx) in kpis"
           :key="k.title"
           :to="k.link"
-          class="group relative flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 p-6"
+          class="group relative flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 pt-6 pb-5 min-h-[210px]"
         >
           <!-- Header: title + kebab -->
-          <div class="flex items-start justify-between">
+          <div class="flex items-start justify-between px-6">
             <h3 class="text-base font-bold text-slate-900 leading-tight">{{ k.title }}</h3>
             <button
               type="button"
@@ -242,13 +242,13 @@ const quickLinks = [
           </div>
 
           <!-- Tiny uppercase label -->
-          <p class="text-[11px] font-semibold text-slate-400 tracking-[0.08em] mt-3">
+          <p class="text-[11px] font-semibold text-slate-400 tracking-[0.08em] mt-4 px-6">
             {{ k.label }}
           </p>
 
           <!-- Big value + inline badge -->
-          <div class="flex items-center gap-2.5 mt-2">
-            <p class="text-3xl font-bold text-slate-900 tracking-tight leading-none">{{ k.val }}</p>
+          <div class="flex items-center gap-2.5 mt-2 px-6">
+            <p class="text-[32px] font-bold text-slate-900 tracking-tight leading-none">{{ k.val }}</p>
             <span
               v-if="k.pct"
               :class="[
@@ -264,8 +264,8 @@ const quickLinks = [
             </span>
           </div>
 
-          <!-- Sparkline -->
-          <svg class="block w-full h-10 mt-5" viewBox="0 0 320 80" preserveAspectRatio="none">
+          <!-- Sparkline pinned to the bottom -->
+          <svg class="block w-full h-12 mt-auto px-4" viewBox="0 0 320 80" preserveAspectRatio="none">
             <defs>
               <linearGradient :id="`spark-grad-${idx}`" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.18" />
