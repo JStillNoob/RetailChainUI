@@ -65,56 +65,61 @@ const D3m = [5, 4, 5, 5, 4, 5, 4, 5, 5, 4, 5, 5, 4, 5, 5, 5, 4, 5, 5, 4]
 const D4 = [3, 4, 4, 5, 5, 5, 6, 6, 5, 6, 6, 7, 7, 6, 7, 7, 8, 8, 7, 8]
 const D4m = [4, 5, 4, 5, 5, 6, 5, 6, 6, 5, 6, 6, 7, 6, 7, 7, 6, 7, 7, 7]
 
-const kpis = computed(() =>
-  overview.value
-    ? [
-        {
-          title: 'Total Tenants',
-          label: 'ORGANIZATIONS',
-          val: overview.value.totalTenants.toLocaleString(),
-          trend: 'up',
-          pct: `+${overview.value.newThisMonth}`,
-          chart: spark(D1),
-          chartFill: sparkArea(D1),
-          chartMuted: spark(D1m),
-          link: '/admin/tenants',
-        },
-        {
-          title: 'Active Tenants',
-          label: 'ACTIVE',
-          val: overview.value.activeTenants.toLocaleString(),
-          trend: 'up',
-          pct: 'OK',
-          chart: spark(D2),
-          chartFill: sparkArea(D2),
-          chartMuted: spark(D2m),
-          link: '/admin/tenants',
-        },
-        {
-          title: 'Active Subscriptions',
-          label: 'BILLING',
-          val: overview.value.activeSubscriptions.toLocaleString(),
-          trend: 'flat',
-          pct: '—',
-          chart: spark(D3),
-          chartFill: sparkArea(D3),
-          chartMuted: spark(D3m),
-          link: '/admin/subscriptions',
-        },
-        {
-          title: 'Monthly Revenue',
-          label: 'REVENUE',
-          val: formatCurrency(overview.value.monthlyRevenue),
-          trend: 'up',
-          pct: '+12%',
-          chart: spark(D4),
-          chartFill: sparkArea(D4),
-          chartMuted: spark(D4m),
-          link: '/admin/subscriptions',
-        },
-      ]
-    : [],
-)
+const kpis = computed(() => {
+  if (!overview.value) return []
+  const o = overview.value
+
+  const activePct = o.totalTenants > 0
+    ? Math.round((o.activeTenants / o.totalTenants) * 100)
+    : null
+
+  return [
+    {
+      title: 'Total Tenants',
+      label: 'ORGANIZATIONS',
+      val: o.totalTenants.toLocaleString(),
+      trend: o.newThisMonth > 0 ? 'up' : 'flat',
+      pct: o.newThisMonth > 0 ? `+${o.newThisMonth} new` : null,
+      chart: spark(D1),
+      chartFill: sparkArea(D1),
+      chartMuted: spark(D1m),
+      link: '/admin/tenants',
+    },
+    {
+      title: 'Active Tenants',
+      label: 'ACTIVE',
+      val: o.activeTenants.toLocaleString(),
+      trend: activePct !== null && activePct >= 90 ? 'up' : 'flat',
+      pct: activePct !== null ? `${activePct}% active` : null,
+      chart: spark(D2),
+      chartFill: sparkArea(D2),
+      chartMuted: spark(D2m),
+      link: '/admin/tenants',
+    },
+    {
+      title: 'Active Subscriptions',
+      label: 'BILLING',
+      val: o.activeSubscriptions.toLocaleString(),
+      trend: o.expiredSubscriptions > 0 ? 'down' : 'flat',
+      pct: o.expiredSubscriptions > 0 ? `${o.expiredSubscriptions} expired` : null,
+      chart: spark(D3),
+      chartFill: sparkArea(D3),
+      chartMuted: spark(D3m),
+      link: '/admin/subscriptions',
+    },
+    {
+      title: 'Monthly Revenue',
+      label: 'REVENUE',
+      val: formatCurrency(o.monthlyRevenue),
+      trend: 'flat',
+      pct: null,
+      chart: spark(D4),
+      chartFill: sparkArea(D4),
+      chartMuted: spark(D4m),
+      link: '/admin/subscriptions',
+    },
+  ]
+})
 
 const quickLinks = [
   {
@@ -245,8 +250,9 @@ const quickLinks = [
           <div class="flex items-center gap-2.5 mt-2">
             <p class="text-3xl font-bold text-slate-900 tracking-tight leading-none">{{ k.val }}</p>
             <span
+              v-if="k.pct"
               :class="[
-                'inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full',
+                'inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap',
                 k.trend === 'up'
                   ? 'bg-emerald-100 text-emerald-700'
                   : k.trend === 'down'
