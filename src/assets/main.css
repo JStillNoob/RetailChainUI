@@ -19,11 +19,11 @@
    RetailChain Design System — Poseidon Inspired
    ============================================ */
 
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* Tailwind v4's preflight already handles box-sizing and resets margins on
+   the elements that need it. A universal `padding: 0` would zero out every
+   utility class's padding (px-*, p-*, py-*) on every element, which is the
+   reason every "tight content" UI complaint kept resisting fixes. Don't
+   reintroduce a `* { padding: 0 }` rule. */
 
 :root {
   /* Brand Colors */
