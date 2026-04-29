@@ -7,8 +7,11 @@ export interface NavItem {
   /** Phosphor icon class name (without ph-fill prefix) e.g. 'ph-squares-four' */
   icon: string
   label: string
-  to: string
+  /** Route the link points to. Optional for tree-parent items that only group children. */
+  to?: string
   id: string
+  /** Optional nested items rendered as an expandable subtree. */
+  children?: NavItem[]
 }
 
 export interface NavGroup {
@@ -33,16 +36,16 @@ export const navConfig: Record<string, NavGroup[]> = {
       items: [
         { icon: 'ph-users',           label: 'Users',       to: '/dashboard/users',        id: 'nav-users' },
         { icon: 'ph-shield-check',    label: 'Roles',       to: '/dashboard/roles',        id: 'nav-roles' },
-        { icon: 'ph-package',         label: 'Products',    to: '/dashboard/products',     id: 'nav-products' },
+        {
+          icon: 'ph-package',         label: 'Products',    id: 'nav-products',
+          children: [
+            { icon: 'ph-list-bullets',     label: 'Catalog',    to: '/dashboard/products',  id: 'nav-products-catalog' },
+            { icon: 'ph-arrow-circle-down', label: 'Stock In',  to: '/dashboard/stock-in', id: 'nav-products-stockin' },
+            { icon: 'ph-cash-register',    label: 'Cashier',   to: '/dashboard/pos',       id: 'nav-products-cashier' },
+          ],
+        },
         { icon: 'ph-users-three',     label: 'Suppliers',   to: '/dashboard/suppliers',    id: 'nav-suppliers' },
         { icon: 'ph-git-branch',      label: 'Branches',    to: '/dashboard/branches',     id: 'nav-branches' },
-      ],
-    },
-    {
-      groupLabel: 'Operations',
-      items: [
-        { icon: 'ph-arrow-circle-down', label: 'Stock In',    to: '/dashboard/stock-in', id: 'nav-stock-in' },
-        { icon: 'ph-cash-register',     label: 'Cashiering',  to: '/dashboard/pos',      id: 'nav-pos' },
       ],
     },
     {

@@ -15,9 +15,11 @@ const auth   = useAuthStore()
 const sidebarCollapsed = ref(false)
 const mobileOpen       = ref(false)
 
-// All nav items flattened — for page title lookup
+// All nav items flattened (including tree-parent children) — for page title lookup
 const allItems = computed(() =>
-  (navConfig[auth.roleTypeName] ?? defaultNavConfig).flatMap(g => g.items)
+  (navConfig[auth.roleTypeName] ?? defaultNavConfig)
+    .flatMap(g => g.items)
+    .flatMap(item => item.children?.length ? [item, ...item.children] : [item])
 )
 
 const currentLabel = computed(() => {
@@ -25,7 +27,8 @@ const currentLabel = computed(() => {
   return match?.label ?? 'Super Admin'
 })
 
-const isActive = (to: string) => {
+const isActive = (to?: string) => {
+  if (!to) return false
   if (to === '/admin') return route.path === '/admin'
   return route.path.startsWith(to)
 }

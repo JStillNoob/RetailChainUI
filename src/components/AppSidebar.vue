@@ -7,11 +7,11 @@
  *   v-model:mobileOpen — mobile drawer open state
  *   theme              — 'light' (default) | 'dark' (Super Admin)
  */
-import { computed } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.ts'
 import { navConfig, defaultNavConfig } from '../config/navConfig.ts'
-import type { NavGroup } from '../config/navConfig.ts'
+import type { NavGroup, NavItem } from '../config/navConfig.ts'
 
 defineOptions({ name: 'AppSidebar' })
 
@@ -45,10 +45,33 @@ const navGroups = computed<NavGroup[]>(() =>
 )
 
 // ── Active route helper ───────────────────────────────────────────────────────
-const isActive = (to: string) => {
+const isActive = (to?: string) => {
+  if (!to) return false
   if (to === '/dashboard' || to === '/admin') return route.path === to
   return route.path.startsWith(to)
 }
+
+const isAnyChildActive = (item: NavItem): boolean =>
+  !!item.children?.some(c => isActive(c.to) || isAnyChildActive(c))
+
+// ── Expand/collapse state for tree-parent items ───────────────────────────────
+const expanded = reactive<Record<string, boolean>>({})
+
+function toggleExpanded(item: NavItem) {
+  expanded[item.id] = !expanded[item.id]
+}
+
+const isExpanded = (item: NavItem) =>
+  expanded[item.id] ?? isAnyChildActive(item)
+
+// Auto-expand a parent when navigating into one of its children.
+watch(() => route.path, () => {
+  for (const group of navGroups.value) {
+    for (const item of group.items) {
+      if (item.children && isAnyChildActive(item)) expanded[item.id] = true
+    }
+  }
+}, { immediate: true })
 
 // ── Dark-theme flag ───────────────────────────────────────────────────────────
 const isDark = computed(() => props.theme === 'dark')
@@ -163,25 +186,72 @@ const handleUpgrade = () => {
         </h3>
 
         <!-- Nav links -->
-        <router-link
-          v-for="item in group.items"
-          :key="item.id"
-          :to="item.to"
-          :id="item.id"
-          class="nav-item"
-          :class="{ 'nav-item--active': isActive(item.to) }"
-          :title="collapsed ? item.label : ''"
-          :aria-label="item.label"
-          :aria-current="isActive(item.to) ? 'page' : undefined"
-          @click="closeMobile"
-        >
-          <i
-            :class="`ph-fill ${item.icon}`"
-            class="nav-item__icon"
-            aria-hidden="true"
-          />
-          <span v-if="!collapsed" class="nav-item__label">{{ item.label }}</span>
-        </router-link>
+        <template v-for="item in group.items" :key="item.id">
+
+          <!-- Tree-parent (has children) -->
+          <template v-if="item.children && item.children.length">
+            <button
+              type="button"
+              :id="item.id"
+              class="nav-item nav-item--parent"
+              :class="{ 'nav-item--active': isAnyChildActive(item) }"
+              :title="collapsed ? item.label : ''"
+              :aria-label="item.label"
+              :aria-expanded="isExpanded(item)"
+              :aria-controls="`${item.id}-children`"
+              @click="toggleExpanded(item)"
+            >
+              <i :class="`ph-fill ${item.icon}`" class="nav-item__icon" aria-hidden="true" />
+              <span v-if="!collapsed" class="nav-item__label">{{ item.label }}</span>
+              <i
+                v-if="!collapsed"
+                class="ph ph-caret-right nav-item__chevron"
+                :class="{ 'nav-item__chevron--open': isExpanded(item) }"
+                aria-hidden="true"
+              />
+            </button>
+
+            <!-- Children — only when expanded and sidebar not collapsed -->
+            <div
+              v-if="!collapsed"
+              v-show="isExpanded(item)"
+              :id="`${item.id}-children`"
+              class="nav-children"
+            >
+              <router-link
+                v-for="child in item.children"
+                :key="child.id"
+                :to="child.to ?? '/'"
+                :id="child.id"
+                class="nav-item nav-item--child"
+                :class="{ 'nav-item--active': isActive(child.to) }"
+                :aria-label="child.label"
+                :aria-current="isActive(child.to) ? 'page' : undefined"
+                @click="closeMobile"
+              >
+                <i :class="`ph-fill ${child.icon}`" class="nav-item__icon" aria-hidden="true" />
+                <span class="nav-item__label">{{ child.label }}</span>
+              </router-link>
+            </div>
+          </template>
+
+          <!-- Plain leaf link -->
+          <router-link
+            v-else
+            :to="item.to ?? '/'"
+            :id="item.id"
+            class="nav-item"
+            :class="{ 'nav-item--active': isActive(item.to) }"
+            :title="collapsed ? item.label : ''"
+            :aria-label="item.label"
+            :aria-current="isActive(item.to) ? 'page' : undefined"
+            @click="closeMobile"
+          >
+            <i :class="`ph-fill ${item.icon}`" class="nav-item__icon" aria-hidden="true" />
+            <span v-if="!collapsed" class="nav-item__label">{{ item.label }}</span>
+          </router-link>
+
+        </template>
       </template>
 
       <!-- ── Go Premium Ad ── -->
@@ -417,6 +487,49 @@ const handleUpgrade = () => {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ── Tree parent button (looks like nav-item but is a <button>) ── */
+.nav-item--parent {
+  width: 100%;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+}
+
+.nav-item__chevron {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--nav-item-icon);
+  transition: transform var(--transition);
+}
+.nav-item__chevron--open {
+  transform: rotate(90deg);
+}
+
+/* ── Children container — indented column ── */
+.nav-children {
+  display: flex;
+  flex-direction: column;
+  margin: 2px 0 6px 12px;
+  padding-left: 14px;
+  border-left: 1.5px dashed #e2e8f0;
+}
+
+.nav-item--child {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.nav-item--child .nav-item__icon {
+  font-size: 16px;
+}
+
+/* Dark theme: dashed guide line */
+.app-sidebar--dark .nav-children {
+  border-left-color: rgba(255, 255, 255, 0.08);
 }
 
 /* ── Collapsed mode ── */
