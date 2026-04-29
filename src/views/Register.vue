@@ -1,22 +1,25 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { register } from '../services/auth.ts'
-import { getStoreTypes } from '../services/superadmin.ts'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth.ts'
+import authIllustration from '@/assets/images/Gemini_Generated_Image_tr35wvtr35wvtr35-removebg-preview.png'
+import logo from '@/assets/images/logo.png'
 
 defineOptions({ name: 'RegisterPage' })
 
 const router = useRouter()
-
-import { useAuthStore } from '../stores/auth.ts'
-
 const auth = useAuthStore()
 
-const valueProps = [
-  { icon: 'ph-package',       title: 'Full Inventory Control', desc: 'Track every SKU in real-time with dynamic product fields', color: '#3B82F6' },
-  { icon: 'ph-storefront',    title: 'Built-in POS',           desc: 'Cashiering that auto-syncs with your stock levels',       color: '#22C55E' },
-  { icon: 'ph-chart-line-up', title: 'Demand Forecasting',     desc: 'AI-assisted stock planning using Moving Average',         color: '#A855F7' },
-]
+const email = ref('')
+const password = ref('')
+const confirmPassword = ref('')
+const showPwd = ref(false)
+const showConfirm = ref(false)
+const agreeTerms = ref(false)
+const error = ref('')
+const success = ref('')
+const loading = ref(false)
 
 const passwordScore = computed(() => {
   const pw = password.value
@@ -28,39 +31,36 @@ const passwordScore = computed(() => {
   if (/[^A-Za-z0-9]/.test(pw)) score++
   return score
 })
-const passwordLabel = computed(() => ['', 'Weak', 'Fair', 'Good', 'Strong'][passwordScore.value] ?? '')
-const passwordColor = computed(() => (['', '#EF4444', '#F97316', '#22C55E', '#3B82F6'])[passwordScore.value] ?? '')
-
-const email           = ref('')
-const password        = ref('')
-const confirmPassword = ref('')
-const showPwd         = ref(false)
-const showConfirm     = ref(false)
-const agreeTerms      = ref(false)
-const error           = ref('')
-const success         = ref('')
-const loading         = ref(false)
+const passwordLabel = computed(
+  () => ['', 'Weak', 'Fair', 'Good', 'Strong'][passwordScore.value] ?? '',
+)
+const passwordColor = computed(
+  () => ['', '#EF4444', '#F97316', '#22C55E', '#3B82F6'][passwordScore.value] ?? '',
+)
 
 const handleRegister = async () => {
   error.value = ''
   success.value = ''
   if (!email.value || !password.value) {
-    error.value = 'Please fill in all required fields.'; return
+    error.value = 'Please fill in all required fields.'
+    return
   }
   if (password.value !== confirmPassword.value) {
-    error.value = 'Passwords do not match.'; return
+    error.value = 'Passwords do not match.'
+    return
   }
   if (password.value.length < 8) {
-    error.value = 'Password must be at least 8 characters.'; return
+    error.value = 'Password must be at least 8 characters.'
+    return
   }
   if (!agreeTerms.value) {
-    error.value = 'Please accept the Terms of Service to continue.'; return
+    error.value = 'Please accept the Terms of Service to continue.'
+    return
   }
   loading.value = true
   try {
     await register(email.value, password.value)
     success.value = 'Account created! Redirecting to setup...'
-    // Auto login
     await auth.login(email.value, password.value)
     setTimeout(() => router.push('/onboarding'), 1500)
   } catch (err: unknown) {
@@ -73,287 +73,460 @@ const handleRegister = async () => {
 </script>
 
 <template>
-  <div class="auth-page">
-    <!-- Left Panel -->
-    <div class="auth-left">
-      <div class="geo-bg"></div>
-      <div class="auth-left-content">
-        <router-link to="/" class="auth-brand">
-          <div class="auth-logo-pill">
-            <img src="@/assets/images/logo.png" alt="RetailChain" class="auth-logo-img" />
-          </div>
-        </router-link>
+  <div class="h-screen flex bg-slate-50 overflow-hidden font-sans">
+    <!-- ── Left: illustration panel ── -->
+    <aside
+      class="hidden lg:flex w-1/2 flex-col p-12 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative overflow-hidden"
+    >
+      <!-- Decorative blurred orbs (Animated) -->
+      <div
+        class="absolute -top-32 -left-24 w-96 h-96 bg-purple-400/40 rounded-full blur-[80px] pointer-events-none animate-blob"
+      ></div>
+      <div
+        class="absolute top-1/2 -right-24 w-80 h-80 bg-pink-400/40 rounded-full blur-[80px] pointer-events-none animate-blob animation-delay-2000"
+      ></div>
+      <div
+        class="absolute -bottom-32 left-20 w-96 h-96 bg-indigo-400/40 rounded-full blur-[80px] pointer-events-none animate-blob animation-delay-4000"
+      ></div>
 
-        <div class="auth-value-props">
-          <h2 class="avp-title">Start managing your retail supply chain today</h2>
-          <p class="avp-desc">
-            Join hundreds of Philippine retail businesses streamlining their operations with RetailChain.
-            Free 14-day trial. No credit card required.
-          </p>
+      <!-- Brand -->
+      <router-link
+        to="/"
+        class="absolute top-0 left-0 z-30 inline-flex items-center transform transition hover:scale-105 duration-300"
+      >
+        <img :src="logo" alt="RetailChain" class="h-20 w-auto object-contain drop-shadow-sm" />
+      </router-link>
 
-          <div class="avp-list">
-            <div v-for="prop in valueProps" :key="prop.title" class="avp-item">
-              <div class="avp-icon" :style="{ background: prop.color + '22', color: prop.color }">
-                <i :class="['ph-fill', prop.icon]"></i>
-              </div>
-              <div>
-                <div class="avp-item-title">{{ prop.title }}</div>
-                <div class="avp-item-desc">{{ prop.desc }}</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="avp-badges">
-            <div class="avp-badge"><i class="ph-fill ph-shield-check"></i><span>SOC 2 Compliant</span></div>
-            <div class="avp-badge"><i class="ph-fill ph-lock"></i><span>256-bit Encryption</span></div>
-            <div class="avp-badge"><i class="ph-fill ph-cloud"></i><span>99.9% Uptime</span></div>
-          </div>
-        </div>
+      <!-- Illustration -->
+      <div
+        class="relative top-15 z-0 flex-1 flex items-center justify-center min-h-0 mt-10 mb-4 illustration-wrapper scale-[1.15]"
+      >
+        <img
+          :src="authIllustration"
+          alt="RetailChain workspace"
+          class="max-w-full h-100 object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.15)] floating-img"
+        />
       </div>
-    </div>
-
-    <!-- Right Panel -->
-    <div class="auth-right">
-      <div class="auth-form-wrapper">
-        <div class="auth-form-header">
-          <h1 class="auth-title">Create your account</h1>
-          <p class="auth-subtitle">Set up your retail store in minutes</p>
-        </div>
-
-        <div v-if="error" class="auth-error" role="alert">
-          <i class="ph-fill ph-warning-circle"></i> {{ error }}
-        </div>
-        <div v-if="success" class="auth-success" role="status">
-          <i class="ph-fill ph-check-circle"></i> {{ success }}
-        </div>
-
-        <form @submit.prevent="handleRegister" class="auth-form" id="register-form">
-
-
-
-          <!-- Email -->
-          <div class="rc-form-group">
-            <label for="reg-email" class="rc-label">Email address <span class="req">*</span></label>
-            <div class="rc-input-wrap">
-              <i class="ph ph-envelope rc-input-icon"></i>
-              <input id="reg-email" v-model="email" type="email" class="rc-input" placeholder="you@example.com" autocomplete="email" required />
-            </div>
-          </div>
-
-          <!-- Password -->
-          <div class="rc-form-group">
-            <label for="reg-password" class="rc-label">Password <span class="req">*</span></label>
-            <div class="rc-input-wrap">
-              <i class="ph ph-lock rc-input-icon"></i>
-              <input
-                id="reg-password"
-                v-model="password"
-                :type="showPwd ? 'text' : 'password'"
-                class="rc-input rc-input--has-toggle"
-                placeholder="Min. 8 characters"
-                autocomplete="new-password"
-                required
-              />
-              <button type="button" class="rc-pwd-toggle" @click="showPwd = !showPwd" tabindex="-1">
-                <i :class="showPwd ? 'ph ph-eye-slash' : 'ph ph-eye'"></i>
-              </button>
-            </div>
-            <div v-if="password" class="pw-strength">
-              <div class="pw-bar-track">
-                <div class="pw-bar-fill" :style="{ width: (passwordScore / 4 * 100) + '%', background: passwordColor }"></div>
-              </div>
-              <span class="pw-label" :style="{ color: passwordColor }">{{ passwordLabel }}</span>
-            </div>
-          </div>
-
-          <!-- Confirm password -->
-          <div class="rc-form-group">
-            <label for="confirm-password" class="rc-label">Confirm Password <span class="req">*</span></label>
-            <div class="rc-input-wrap">
-              <i class="ph ph-lock-key rc-input-icon"></i>
-              <input
-                id="confirm-password"
-                v-model="confirmPassword"
-                :type="showConfirm ? 'text' : 'password'"
-                class="rc-input rc-input--has-toggle"
-                placeholder="Repeat password"
-                autocomplete="new-password"
-                required
-              />
-              <button type="button" class="rc-pwd-toggle" @click="showConfirm = !showConfirm" tabindex="-1">
-                <i :class="showConfirm ? 'ph ph-eye-slash' : 'ph ph-eye'"></i>
-              </button>
-              <i
-                v-if="confirmPassword"
-                class="ph-fill match-icon"
-                :class="password === confirmPassword ? 'ph-check-circle match-ok' : 'ph-x-circle match-err'"
-              ></i>
-            </div>
-          </div>
-
-          <!-- Terms checkbox -->
-          <label class="checkbox-row">
-            <input type="checkbox" v-model="agreeTerms" id="agree-terms" class="rc-checkbox" />
-            <span class="checkbox-text">
-              I agree to the <a href="#" class="auth-switch-link">Terms of Service</a> and <a href="#" class="auth-switch-link">Privacy Policy</a>
-            </span>
-          </label>
-
-          <button type="submit" class="rc-btn-primary" :disabled="loading" id="register-submit-btn">
-            <i :class="loading ? 'ph ph-circle-notch spin' : 'ph ph-user-plus'"></i>
-            {{ loading ? 'Creating account…' : 'Create Account' }}
-          </button>
-        </form>
-
-        <p class="auth-switch">
-          Already have an account?
-          <router-link to="/login" class="auth-switch-link">Sign in</router-link>
+      <!-- Tagline in Glass Card -->
+      <div class="relative z-10 max-w-lg glass-panel p-8 rounded-3xl">
+        <h2 class="text-3xl font-black text-slate-900 leading-tight tracking-tight">
+          Start managing your retail chain in minutes.
+        </h2>
+        <p class="mt-3 text-base text-slate-600 leading-relaxed font-medium">
+          Free 14-day trial. No credit card required. Experience seamless operations today.
         </p>
+        <div class="mt-5 flex flex-wrap gap-3">
+          <span
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/70 border border-white shadow-sm text-xs font-bold text-slate-700 hover:-translate-y-0.5 transition-transform"
+          >
+            <i class="ph-fill ph-shield-check text-blue-600 text-sm"></i> SOC 2
+          </span>
+          <span
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/70 border border-white shadow-sm text-xs font-bold text-slate-700 hover:-translate-y-0.5 transition-transform"
+          >
+            <i class="ph-fill ph-lock text-blue-600 text-sm"></i> 256-bit Encryption
+          </span>
+          <span
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/70 border border-white shadow-sm text-xs font-bold text-slate-700 hover:-translate-y-0.5 transition-transform"
+          >
+            <i class="ph-fill ph-cloud text-blue-600 text-sm"></i> 99.9% Uptime
+          </span>
+        </div>
       </div>
-    </div>
+    </aside>
+
+    <!-- ── Right: form panel ── -->
+    <main
+      class="flex-1 relative bg-white overflow-y-auto overflow-x-hidden shadow-[-20px_0_40px_rgba(0,0,0,0.02)] z-10 rounded-l-[2rem] lg:rounded-l-[3rem]"
+    >
+      <!-- Subtle background elements for the form side -->
+      <div
+        class="absolute top-0 right-0 w-full min-h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-50/50 via-white to-white pointer-events-none"
+      ></div>
+
+      <!-- Scrollable content wrapper -->
+      <div class="min-h-full w-full flex items-center justify-center p-6 lg:p-12 relative z-10">
+        <div class="w-full max-w-[400px]">
+          <!-- Mobile brand -->
+          <router-link to="/" class="lg:hidden flex justify-center mb-8 fade-up">
+            <img :src="logo" alt="RetailChain" class="h-12 w-auto object-contain drop-shadow-sm" />
+          </router-link>
+
+          <div class="text-center lg:text-left fade-up">
+            <h1 class="text-[32px] font-extrabold text-slate-900 tracking-tight">
+              Create your account
+            </h1>
+            <p class="mt-2 text-[15px] text-slate-500">Set up your retail store in minutes</p>
+          </div>
+
+          <!-- Alerts -->
+          <div
+            v-if="error"
+            role="alert"
+            class="mt-6 flex items-start gap-3 px-4 py-3 rounded-[10px] bg-red-50/80 border border-red-100 text-red-600 text-sm font-medium backdrop-blur-sm fade-up delay-100"
+          >
+            <i class="ph-fill ph-warning-circle text-lg mt-0.5"></i>
+            <span>{{ error }}</span>
+          </div>
+          <div
+            v-if="success"
+            role="status"
+            class="mt-6 flex items-start gap-3 px-4 py-3 rounded-[10px] bg-green-50/80 border border-green-100 text-green-700 text-sm font-medium backdrop-blur-sm fade-up delay-100"
+          >
+            <i class="ph-fill ph-check-circle text-lg mt-0.5"></i>
+            <span>{{ success }}</span>
+          </div>
+
+          <form @submit.prevent="handleRegister" id="register-form" class="mt-8">
+            <!-- Email -->
+            <div class="fade-up delay-100">
+              <label for="reg-email" class="block text-sm font-bold text-slate-800 mb-2 ml-1">
+                Email address <span class="text-red-500">*</span>
+              </label>
+              <div class="auth-field">
+                <i class="ph ph-envelope auth-field__icon"></i>
+                <input
+                  id="reg-email"
+                  v-model="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  autocomplete="email"
+                  required
+                  class="auth-field__input"
+                />
+              </div>
+            </div>
+
+            <!-- Password -->
+            <div class="fade-up delay-200 mt-5">
+              <label for="reg-password" class="block text-sm font-bold text-slate-800 mb-2 ml-1">
+                Password <span class="text-red-500">*</span>
+              </label>
+              <div class="auth-field">
+                <i class="ph ph-lock auth-field__icon"></i>
+                <input
+                  id="reg-password"
+                  v-model="password"
+                  :type="showPwd ? 'text' : 'password'"
+                  placeholder="Min. 8 characters"
+                  autocomplete="new-password"
+                  required
+                  class="auth-field__input"
+                />
+                <button
+                  type="button"
+                  @click="showPwd = !showPwd"
+                  tabindex="-1"
+                  aria-label="Toggle password visibility"
+                  class="auth-field__btn"
+                >
+                  <i :class="showPwd ? 'ph-fill ph-eye-slash' : 'ph-fill ph-eye'"></i>
+                </button>
+              </div>
+              <div
+                v-if="password"
+                class="mt-2 flex items-center gap-3 px-1 transition-all duration-300"
+              >
+                <div class="flex-1 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                  <div
+                    class="h-full rounded-full transition-all duration-500 ease-out"
+                    :style="{ width: (passwordScore / 4) * 100 + '%', background: passwordColor }"
+                  ></div>
+                </div>
+                <span class="text-xs font-bold whitespace-nowrap" :style="{ color: passwordColor }">
+                  {{ passwordLabel }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Confirm password -->
+            <div class="fade-up delay-300 mt-5">
+              <label
+                for="confirm-password"
+                class="block text-sm font-bold text-slate-800 mb-2 ml-1"
+              >
+                Confirm Password <span class="text-red-500">*</span>
+              </label>
+              <div class="auth-field">
+                <i class="ph ph-lock-key auth-field__icon"></i>
+                <input
+                  id="confirm-password"
+                  v-model="confirmPassword"
+                  :type="showConfirm ? 'text' : 'password'"
+                  placeholder="Repeat password"
+                  autocomplete="new-password"
+                  required
+                  class="auth-field__input"
+                />
+                <i
+                  v-if="confirmPassword"
+                  :class="[
+                    'ph-fill text-xl mr-2 transition-all duration-300',
+                    password === confirmPassword
+                      ? 'ph-check-circle text-green-500 scale-110'
+                      : 'ph-x-circle text-red-500',
+                  ]"
+                ></i>
+                <button
+                  type="button"
+                  @click="showConfirm = !showConfirm"
+                  tabindex="-1"
+                  aria-label="Toggle confirm password visibility"
+                  class="auth-field__btn"
+                >
+                  <i :class="showConfirm ? 'ph-fill ph-eye-slash' : 'ph-fill ph-eye'"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Terms -->
+            <div class="fade-up delay-400 mt-5">
+              <label class="flex items-start gap-3 cursor-pointer group">
+                <div class="relative flex items-center justify-center mt-0.5">
+                  <input
+                    id="agree-terms"
+                    v-model="agreeTerms"
+                    type="checkbox"
+                    class="peer w-5 h-5 appearance-none rounded-md border-[1.5px] border-slate-300 checked:bg-blue-600 checked:border-blue-600 transition-colors cursor-pointer"
+                  />
+                  <i
+                    class="ph-bold ph-check absolute text-white text-xs opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity"
+                  ></i>
+                </div>
+                <span
+                  class="text-sm font-medium text-slate-600 leading-relaxed group-hover:text-slate-800 transition-colors"
+                >
+                  I agree to the
+                  <a href="#" class="font-bold text-blue-600 hover:text-blue-700 hover:underline"
+                    >Terms of Service</a
+                  >
+                  and
+                  <a href="#" class="font-bold text-blue-600 hover:text-blue-700 hover:underline"
+                    >Privacy Policy</a
+                  >
+                </span>
+              </label>
+            </div>
+
+            <!-- Submit -->
+            <div class="fade-up delay-400 mt-6">
+              <button
+                type="submit"
+                :disabled="loading"
+                id="register-submit-btn"
+                class="btn-primary w-full h-[52px] inline-flex items-center justify-center gap-2 rounded-[10px] text-white text-base font-bold transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                <i v-if="loading" class="ph ph-circle-notch animate-spin text-xl"></i>
+                <i v-else class="ph ph-user-plus text-xl -mt-0.5"></i>
+                {{ loading ? 'Creating account…' : 'Create Account' }}
+              </button>
+            </div>
+          </form>
+
+          <p class="mt-8 text-center text-[15px] font-medium text-slate-500 fade-up delay-400">
+            Already have an account?
+            <router-link
+              to="/login"
+              class="font-bold text-blue-600 hover:text-blue-700 hover:underline transition-colors ml-1"
+              >Sign in</router-link
+            >
+          </p>
+        </div>
+      </div>
+    </main>
   </div>
 </template>
 
 <style scoped>
-/* ── Page shell ─────────────────────────────────────────────────────────── */
-.auth-page { display: flex; min-height: 100vh; }
-
-/* ── Left panel ─────────────────────────────────────────────────────────── */
-.auth-left {
-  flex: 1; background: linear-gradient(145deg, #1E2B5E 0%, #2D3E8B 60%, #1A237E 100%);
-  padding: 40px; display: flex; flex-direction: column;
-  position: relative; overflow: hidden;
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
 }
-.auth-left-content { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; }
-.auth-brand { margin-bottom: 40px; display: inline-block; text-decoration: none; }
-.auth-logo-pill { display: inline-flex; align-items: center; }
-.auth-logo-img { height: 80px; width: auto; max-width: 300px; object-fit: contain; display: block; }
 
-.auth-value-props { display: flex; flex-direction: column; justify-content: center; flex: 1; }
-.avp-title { font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 800; color: #fff; line-height: 1.2; margin-bottom: 14px; }
-.avp-desc  { font-size: 14px; color: rgba(255,255,255,0.65); line-height: 1.7; margin-bottom: 36px; }
-.avp-list  { display: flex; flex-direction: column; gap: 20px; margin-bottom: 36px; }
-.avp-item  { display: flex; align-items: flex-start; gap: 14px; }
-.avp-icon  { width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-.avp-item-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 2px; }
-.avp-item-desc  { font-size: 12px; color: rgba(255,255,255,0.55); }
-.avp-badges { display: flex; gap: 10px; flex-wrap: wrap; }
-.avp-badge { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 9999px; padding: 5px 12px; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.75); }
-.avp-badge i { font-size: 14px; color: #60A5FA; }
-
-/* ── Right panel ────────────────────────────────────────────────────────── */
-.auth-right {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  padding: 40px; background: #F8FAFF; overflow-y: auto;
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-.auth-form-wrapper { width: 100%; max-width: 460px; padding: 8px 0; }
-.auth-form-header { margin-bottom: 28px; }
-.auth-title { font-size: 30px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px; color: #1E2B5E; }
-.auth-subtitle { color: #5D6787; font-size: 14px; }
 
-/* ── Alerts ─────────────────────────────────────────────────────────────── */
-.auth-error, .auth-success {
-  display: flex; align-items: center; gap: 8px;
-  border-radius: 10px; padding: 12px 16px;
-  font-size: 13.5px; font-weight: 500; margin-bottom: 18px;
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
 }
-.auth-error   { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #DC2626; }
-.auth-success { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2); color: #16A34A; }
-.auth-error i, .auth-success i { font-size: 17px; flex-shrink: 0; }
 
-/* ── Form layout ─────────────────────────────────────────────────────────── */
-.auth-form { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
-.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-/* ── Inputs ─────────────────────────────────────────────────────────────── */
-.rc-form-group { display: flex; flex-direction: column; gap: 5px; }
-.rc-label { font-size: 13px; font-weight: 600; color: #1E2B5E; }
-.req { color: #EF4444; }
-
-.rc-input-wrap { position: relative; }
-.rc-input-icon {
-  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-  color: #5D6787; font-size: 16px; pointer-events: none; z-index: 1;
+.animate-blob {
+  animation: blob 12s infinite alternate ease-in-out;
 }
-.rc-input {
-  width: 100%;
-  padding: 11px 16px 11px 42px;
-  border: 1.5px solid rgba(180,192,230,0.6);
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+.fade-up {
+  animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+.delay-100 {
+  animation-delay: 0.1s;
+}
+.delay-200 {
+  animation-delay: 0.2s;
+}
+.delay-300 {
+  animation-delay: 0.3s;
+}
+.delay-400 {
+  animation-delay: 0.4s;
+}
+
+.floating-img {
+  animation: float 6s ease-in-out infinite;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 10px 40px -10px rgba(31, 38, 135, 0.1);
+}
+
+.auth-field {
+  display: flex;
+  align-items: center;
+  height: 52px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
   border-radius: 10px;
-  font-family: inherit;
-  font-size: 13.5px;
-  color: #1E2B5E;
-  background: rgba(255,255,255,0.9);
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  box-sizing: border-box;
-  appearance: none;
+  padding: 0 6px 0 16px;
+  transition: all 0.2s ease-in-out;
 }
-.rc-input::placeholder { color: #5D6787; opacity: 0.65; }
-.rc-input:focus {
-  border-color: #3B82F6;
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
-  background: #fff;
+.auth-field:hover {
+  border-color: #94a3b8;
+  background: #ffffff;
 }
-.rc-input--has-toggle { padding-right: 44px; }
-.rc-select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235D6787' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
-
-.rc-pwd-toggle {
-  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-  background: none; border: none; cursor: pointer;
-  color: #5D6787; font-size: 17px; padding: 2px;
-  transition: color 0.15s; display: flex; align-items: center;
-}
-.rc-pwd-toggle:hover { color: #3B82F6; }
-
-.match-icon { position: absolute; right: 38px; top: 50%; transform: translateY(-50%); font-size: 16px; pointer-events: none; }
-.match-ok  { color: #22C55E; }
-.match-err { color: #EF4444; }
-
-/* ── Password strength ───────────────────────────────────────────────────── */
-.pw-strength { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
-.pw-bar-track { flex: 1; height: 4px; background: rgba(180,192,230,0.4); border-radius: 2px; overflow: hidden; }
-.pw-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s, background 0.3s; }
-.pw-label { font-size: 12px; font-weight: 600; white-space: nowrap; }
-
-/* ── Checkbox ────────────────────────────────────────────────────────────── */
-.checkbox-row { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
-.rc-checkbox {
-  width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0;
-  accent-color: #3B82F6; cursor: pointer;
-}
-.checkbox-text { font-size: 13px; color: #5D6787; line-height: 1.5; }
-
-/* ── Primary button ─────────────────────────────────────────────────────── */
-.rc-btn-primary {
-  width: 100%; padding: 13px 24px;
-  background: #3B82F6; color: #fff;
-  border: none; border-radius: 10px;
-  font-family: inherit; font-size: 15px; font-weight: 700;
-  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: all 0.18s;
-  box-shadow: 0 4px 20px rgba(59,130,246,0.30);
-}
-.rc-btn-primary:hover:not(:disabled) {
-  background: #1D4ED8;
+.auth-field:focus-within {
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow:
+    0 4px 12px -4px rgba(59, 130, 246, 0.15),
+    0 0 0 3px rgba(59, 130, 246, 0.15);
   transform: translateY(-1px);
-  box-shadow: 0 8px 28px rgba(59,130,246,0.40);
 }
-.rc-btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
 
-/* ── Switch link ─────────────────────────────────────────────────────────── */
-.auth-switch { text-align: center; font-size: 13.5px; color: #5D6787; margin-top: 16px; }
-.auth-switch-link { color: #3B82F6; font-weight: 700; }
-.auth-switch-link:hover { text-decoration: underline; }
+.auth-field__icon {
+  font-size: 20px;
+  color: #64748b;
+  flex-shrink: 0;
+  margin-right: 12px;
+  transition:
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+.auth-field:focus-within .auth-field__icon {
+  color: #3b82f6;
+  transform: scale(1.05);
+}
 
-/* ── Spinner ─────────────────────────────────────────────────────────────── */
-@keyframes spin { to { transform: rotate(360deg); } }
-.spin { animation: spin 0.8s linear infinite; }
+.auth-field__input {
+  flex: 1;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  font-weight: 500;
+  color: #0f172a;
+}
+.auth-field__input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+}
 
-@media (max-width: 768px) {
-  .auth-page { flex-direction: column; }
-  .auth-left { display: none; }
-  .auth-right { padding: 32px 20px; }
-  .form-row-2 { grid-template-columns: 1fr; }
+.auth-field__btn {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  font-size: 20px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+.auth-field__btn:hover {
+  color: #3b82f6;
+  background: #eff6ff;
+}
+.auth-field__btn:active {
+  transform: scale(0.95);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.39);
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transform: skewX(-20deg);
+  transition: all 0.5s ease;
+}
+.btn-primary:hover {
+  box-shadow: 0 6px 20px 0 rgba(37, 99, 235, 0.39);
+  transform: translateY(-2px);
+}
+.btn-primary:hover::after {
+  left: 150%;
+}
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px 0 rgba(37, 99, 235, 0.39);
+}
+
+.social-btn {
+  transition: all 0.2s ease-in-out;
+}
+.social-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.08);
+}
+.social-btn:active {
+  transform: translateY(0);
 }
 </style>

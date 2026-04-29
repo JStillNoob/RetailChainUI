@@ -2,9 +2,10 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.ts'
+import logo from '@/assets/images/logo.png'
 
 const router = useRouter()
-const auth   = useAuthStore()
+const auth = useAuthStore()
 const mobileMenuOpen = ref(false)
 const isScrolled = ref(false)
 
@@ -155,12 +156,15 @@ const plans = [
       >
         <!-- Left: Logo -->
         <div class="z-10 w-48 lg:w-80 flex justify-end items-center">
-          <a href="/">
+          <a
+            href="/"
+            class="inline-flex items-center transform transition hover:scale-105 duration-300"
+          >
             <img
-              :src="auth.systemLogo || '/src/assets/images/logo.png'"
+              :src="logo"
               alt="RetailChain"
-              class="object-contain drop-shadow-sm transition-all duration-700 hover:scale-105"
-              :class="isScrolled ? 'h-[70px]' : 'h-[85px]'"
+              class="w-auto object-contain drop-shadow-sm transition-all duration-500"
+              :class="isScrolled ? 'h-12' : 'h-20'"
             />
           </a>
         </div>
@@ -170,12 +174,34 @@ const plans = [
           class="nav-links hidden md:flex flex-1 justify-center items-center gap-6 lg:gap-10 text-base xl:text-lg font-semibold whitespace-nowrap transition-colors duration-700 m-0 p-0"
           :class="isScrolled ? 'text-gray-800' : 'text-gray-600'"
         >
-          <li><a href="#features" class="inline-block hover:text-blue-600 active:scale-95 active:text-blue-700 transition-all duration-300">Features</a></li>
           <li>
-            <a href="#retail-types" class="inline-block hover:text-blue-600 active:scale-95 active:text-blue-700 transition-all duration-300">Who It's For</a>
+            <a
+              href="#features"
+              class="inline-block hover:text-blue-600 active:scale-95 active:text-blue-700 transition-all duration-300"
+              >Features</a
+            >
           </li>
-          <li><a href="#pricing" class="inline-block hover:text-blue-600 active:scale-95 active:text-blue-700 transition-all duration-300">Pricing</a></li>
-          <li><a href="#about" class="inline-block hover:text-blue-600 active:scale-95 active:text-blue-700 transition-all duration-300">About</a></li>
+          <li>
+            <a
+              href="#retail-types"
+              class="inline-block hover:text-blue-600 active:scale-95 active:text-blue-700 transition-all duration-300"
+              >Who It's For</a
+            >
+          </li>
+          <li>
+            <a
+              href="#pricing"
+              class="inline-block hover:text-blue-600 active:scale-95 active:text-blue-700 transition-all duration-300"
+              >Pricing</a
+            >
+          </li>
+          <li>
+            <a
+              href="#about"
+              class="inline-block hover:text-blue-600 active:scale-95 active:text-blue-700 transition-all duration-300"
+              >About</a
+            >
+          </li>
         </ul>
 
         <!-- Right: Auth Buttons -->
@@ -547,7 +573,7 @@ const plans = [
         <div class="footer-top">
           <div class="footer-brand">
             <div class="footer-brand-logo">
-              <img :src="auth.systemLogo || '/src/assets/images/logo.png'" alt="RetailChain" class="footer-logo-img" />
+              <img :src="logo" alt="RetailChain" class="footer-logo-img" />
             </div>
             <p>The Smart Supply Chain Platform for Retail Stores.</p>
           </div>
@@ -575,7 +601,7 @@ const plans = [
         <hr class="divider" />
         <div class="footer-bottom">
           <span>© 2026 RetailChain. All rights reserved.</span>
-          <span>Built with ❤️ for Philippine Retail</span>
+          <span>Built with for Philippine Retail</span>
         </div>
       </div>
     </footer>
@@ -1268,9 +1294,11 @@ const plans = [
 
 /* ===== FOOTER ===== */
 .footer {
-  background: var(--color-brand-dark);
+  background: #0f172a; /* Dark navy matching the "RETAILCHAIN" text */
   padding: 48px 0 24px;
   color: rgba(255, 255, 255, 0.6);
+  border-top: 4px solid;
+  border-image: linear-gradient(to right, #0d9488, #06b6d4) 1; /* Teal to Cyan gradient matching the storefront icon */
 }
 .footer .brand-name {
   color: #fff;
