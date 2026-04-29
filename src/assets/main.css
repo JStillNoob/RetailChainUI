@@ -107,9 +107,12 @@ html {
 ::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.3); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-primary); }
 
-/* ---- Typography ---- */
+/* ---- Typography ----
+   No global `p` rule: it forced line-height: 1.6 and a muted color onto
+   every paragraph, which then squashed the rhythm of utility-styled
+   content (KPI cards, value labels). Paragraph styling now lives on the
+   element via Tailwind classes. */
 h1, h2, h3, h4, h5, h6 { color: var(--color-brand-dark); font-weight: 700; line-height: 1.2; }
-p { line-height: 1.6; color: var(--color-brand-muted); }
 a { color: inherit; text-decoration: none; }
 
 /* ---- Buttons ---- */
