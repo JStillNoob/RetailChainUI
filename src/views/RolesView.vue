@@ -72,11 +72,11 @@ const colorMap: Record<string, { bg: string; text: string; border: string; badge
       <div
         v-for="role in ROLES"
         :key="role.name"
-        :class="['ps-card p-5 border', colorMap[role.color].border]"
+        :class="['ps-card p-5 border', colorMap[role.color]!.border]"
       >
         <!-- Header -->
         <div class="flex items-center gap-3 mb-3">
-          <div :class="['w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0', colorMap[role.color].bg, colorMap[role.color].text]">
+          <div :class="['w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0', colorMap[role.color]!.bg, colorMap[role.color]!.text]">
             <i :class="`ph-fill ${role.icon}`"></i>
           </div>
           <div>
@@ -92,7 +92,7 @@ const colorMap: Record<string, { bg: string; text: string; border: string; badge
           <span
             v-for="perm in role.permissions"
             :key="perm"
-            :class="['text-[11px] font-semibold px-2 py-0.5 rounded-full', colorMap[role.color].badge]"
+            :class="['text-[11px] font-semibold px-2 py-0.5 rounded-full', colorMap[role.color]!.badge]"
           >
             {{ perm }}
           </span>
