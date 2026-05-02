@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import {
-  getStoreTypes, createStoreType, deleteStoreType,
+  getStoreTypes, createStoreType, deleteStoreType, archiveStoreType,
   getStoreTypeTemplates, createTemplate, deleteTemplate,
 } from '../../services/superadmin.ts'
 
@@ -14,7 +14,7 @@ const form       = ref({ typeName: '', description: '' })
 
 async function load() {
   loading.value = true
-  try { types.value = await getStoreTypes() }
+  try { types.value = await getStoreTypes(true) }
   finally { loading.value = false }
 }
 onMounted(load)
@@ -33,6 +33,13 @@ async function submit() {
 async function remove(id: number) {
   if (!confirm('Delete this store type? This will also remove all its attribute templates.')) return
   await deleteStoreType(id)
+  await load()
+}
+
+async function archive(id: number, currentStatus: boolean) {
+  const action = currentStatus ? 'Restore' : 'Archive'
+  if (!confirm(`${action} this store type?`)) return
+  await archiveStoreType(id)
   await load()
 }
 
@@ -132,7 +139,10 @@ function goTo(p: number) { if (p >= 1 && p <= totalPages.value) page.value = p }
         </thead>
         <tbody>
           <tr v-for="t in paged" :key="t.storeTypeId">
-            <td class="font-bold text-slate-800">{{ t.typeName }}</td>
+            <td class="font-bold text-slate-800">
+              {{ t.typeName }}
+              <span v-if="t.isArchived" class="ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 uppercase tracking-wider">Archived</span>
+            </td>
             <td class="text-slate-500">{{ t.description ?? '—' }}</td>
             <td><span class="ps-tag ps-tag-slate">{{ t.tenantCount ?? 0 }}</span></td>
             <td>
@@ -144,10 +154,16 @@ function goTo(p: number) { if (p >= 1 && p <= totalPages.value) page.value = p }
               </div>
             </td>
             <td>
-              <button @click="remove(t.storeTypeId)"
-                class="w-8 h-8 inline-flex items-center justify-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all">
-                <i class="ph ph-trash"></i>
-              </button>
+              <div class="flex items-center gap-1 justify-end">
+                <button @click="archive(t.storeTypeId, t.isArchived)" :title="t.isArchived ? 'Restore' : 'Archive'"
+                  class="w-8 h-8 inline-flex items-center justify-center rounded-full text-slate-400 hover:bg-orange-50 hover:text-orange-600 transition-all">
+                  <i :class="t.isArchived ? 'ph ph-arrow-u-up-left' : 'ph ph-archive'"></i>
+                </button>
+                <button @click="remove(t.storeTypeId)" title="Delete"
+                  class="w-8 h-8 inline-flex items-center justify-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all">
+                  <i class="ph ph-trash"></i>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>

@@ -34,8 +34,8 @@ export const changeSubscriptionPlan = (id: number, planId: number) =>
   api.put(`/superadmin/subscriptions/${id}/plan`, { planId }).then(r => r.data)
 
 // ── Store Types ────────────────────────────────────────────────────────────
-export const getStoreTypes = () =>
-  api.get('/superadmin/store-types').then(r => r.data)
+export const getStoreTypes = (includeArchived: boolean = false) =>
+  api.get('/superadmin/store-types', { params: { includeArchived } }).then(r => r.data)
 
 export const createStoreType = (data: object) =>
   api.post('/superadmin/store-types', data).then(r => r.data)
@@ -45,6 +45,9 @@ export const updateStoreType = (id: number, data: object) =>
 
 export const deleteStoreType = (id: number) =>
   api.delete(`/superadmin/store-types/${id}`).then(r => r.data)
+
+export const archiveStoreType = (id: number) =>
+  api.patch(`/superadmin/store-types/${id}/archive`).then(r => r.data)
 
 export const getStoreTypeTemplates = (id: number) =>
   api.get(`/superadmin/store-types/${id}/templates`).then(r => r.data)
