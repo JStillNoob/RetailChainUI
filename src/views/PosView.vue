@@ -77,7 +77,7 @@ function decrement(item: CartItem, idx: number) {
   else cart.value.splice(idx, 1)
 }
 function removeFromCart(idx: number) { cart.value.splice(idx, 1) }
-function clearCart() {
+async function clearCart() {
   if (cart.value.length === 0) return
   if (await confirmDialog('Clear the cart?')) { cart.value = []; customerName.value = '' }
 }
