@@ -200,11 +200,11 @@ const handleLogin = async () => {
           </div>
 
           <!-- Social -->
-          <div class="grid grid-cols-2 gap-4 fade-up delay-400">
+          <div class="grid grid-cols-1 gap-4 fade-up delay-400">
             <button
               type="button"
               id="google-login-btn"
-              class="social-btn h-[48px] inline-flex items-center justify-center gap-2.5 rounded-[10px] border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+              class="social-btn w-full h-[48px] inline-flex items-center justify-center gap-2.5 rounded-[10px] border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300"
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path
@@ -225,19 +225,6 @@ const handleLogin = async () => {
                 />
               </svg>
               Google
-            </button>
-            <button
-              type="button"
-              id="microsoft-login-btn"
-              class="social-btn h-[48px] inline-flex items-center justify-center gap-2.5 rounded-[10px] border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300"
-            >
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <rect x="0" y="0" width="8.5" height="8.5" fill="#F25022" />
-                <rect x="9.5" y="0" width="8.5" height="8.5" fill="#7FBA00" />
-                <rect x="0" y="9.5" width="8.5" height="8.5" fill="#00A4EF" />
-                <rect x="9.5" y="9.5" width="8.5" height="8.5" fill="#FFB900" />
-              </svg>
-              Microsoft
             </button>
           </div>
 

@@ -1,76 +1,50 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import api from '../services/api.ts'
-import { useToast } from '../composables/useToast.ts'
-
 defineOptions({ name: 'RolesView' })
 
-const { toast } = useToast()
+const ROLES = [
+  {
+    name: 'TenantAdmin',
+    icon: 'ph-shield-star',
+    color: 'indigo',
+    description: 'Full access within their own tenant. Can manage users, products, suppliers, branches, and view all reports.',
+    permissions: ['Users', 'Products', 'Inventory', 'Suppliers', 'Branches', 'Purchase Orders', 'Deliveries', 'Sales', 'Analytics', 'Audit Log'],
+  },
+  {
+    name: 'ProcurementOfficer',
+    icon: 'ph-file-text',
+    color: 'blue',
+    description: 'Manages suppliers and purchase orders. Can view and create purchase orders and manage supplier records.',
+    permissions: ['Suppliers', 'Purchase Orders', 'Reports'],
+  },
+  {
+    name: 'WarehouseStaff',
+    icon: 'ph-warehouse',
+    color: 'teal',
+    description: 'Manages inventory and stock levels. Can receive stock, view products, and access demand forecasts.',
+    permissions: ['Products (read)', 'Inventory', 'Stock Receiving', 'Demand Forecast'],
+  },
+  {
+    name: 'LogisticsStaff',
+    icon: 'ph-truck',
+    color: 'orange',
+    description: 'Handles delivery tracking and carrier management. Can update delivery statuses.',
+    permissions: ['Deliveries', 'Carriers (read)', 'Reports'],
+  },
+  {
+    name: 'Cashier',
+    icon: 'ph-cash-register',
+    color: 'green',
+    description: 'Processes sales transactions at the Point of Sale. Can look up products and view their own transaction history.',
+    permissions: ['Point of Sale', 'Sales History', 'Products (lookup)'],
+  },
+]
 
-const roles   = ref<any[]>([])
-const loading = ref(true)
-
-async function loadRoles() {
-  loading.value = true
-  try { roles.value = await api.get('/tenant/roles').then(r => r.data) }
-  catch { toast('Failed to load roles.', 'error') }
-  finally { loading.value = false }
-}
-onMounted(loadRoles)
-
-const showAdd   = ref(false)
-const addName   = ref('')
-const addErr    = ref('')
-const addSaving = ref(false)
-
-async function createRole() {
-  addErr.value = ''
-  if (!addName.value.trim()) { addErr.value = 'Role name is required.'; return }
-  addSaving.value = true
-  try {
-    await api.post('/tenant/roles', { roleName: addName.value.trim() })
-    toast('Role created.'); showAdd.value = false; addName.value = ''
-    await loadRoles()
-  } catch (e: any) {
-    addErr.value = e.response?.data?.message ?? 'Failed to create role.'
-  } finally { addSaving.value = false }
-}
-
-async function deleteRole(r: any) {
-  if (!confirm(`Delete role "${r.roleName}"?`)) return
-  try { await api.delete(`/tenant/roles/${r.roleId}`); toast('Role deleted.'); await loadRoles() }
-  catch (e: any) { toast(e.response?.data?.message ?? 'Failed to delete role.', 'error') }
-}
-
-const activeRole  = ref<any>(null)
-const permissions = ref<any[]>([])
-const permLoading = ref(false)
-const permSaving  = ref(false)
-
-const MODULES = ['Products', 'Inventory', 'Suppliers', 'PurchaseOrders', 'Deliveries', 'Sales', 'Users', 'Reports', 'Audit']
-
-async function openPermissions(r: any) {
-  activeRole.value = r; permLoading.value = true
-  try {
-    const data: any[] = await api.get(`/tenant/roles/${r.roleId}/permissions`).then(res => res.data)
-    permissions.value = MODULES.map(mod => {
-      const existing = data.find(p => p.module === mod)
-      return { module: mod, canView: existing?.canView ?? false, canEdit: existing?.canEdit ?? false, canDelete: existing?.canDelete ?? false }
-    })
-  } catch { toast('Failed to load permissions.', 'error') }
-  finally { permLoading.value = false }
-}
-
-async function savePermissions() {
-  if (!activeRole.value) return
-  permSaving.value = true
-  try { await api.put(`/tenant/roles/${activeRole.value.roleId}/permissions`, permissions.value); toast('Permissions saved.') }
-  catch { toast('Failed to save permissions.', 'error') }
-  finally { permSaving.value = false }
-}
-
-function onEditCheck(p: any, field: 'canEdit' | 'canDelete') {
-  if (p[field]) p.canView = true
+const colorMap: Record<string, { bg: string; text: string; border: string; badge: string }> = {
+  indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-200', badge: 'bg-indigo-100 text-indigo-700' },
+  blue:   { bg: 'bg-blue-50',   text: 'text-blue-600',   border: 'border-blue-200',   badge: 'bg-blue-100 text-blue-700' },
+  teal:   { bg: 'bg-teal-50',   text: 'text-teal-600',   border: 'border-teal-200',   badge: 'bg-teal-100 text-teal-700' },
+  orange: { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200', badge: 'bg-orange-100 text-orange-700' },
+  green:  { bg: 'bg-green-50',  text: 'text-green-600',  border: 'border-green-200',  badge: 'bg-green-100 text-green-700' },
 }
 </script>
 
@@ -80,138 +54,51 @@ function onEditCheck(p: any, field: 'canEdit' | 'canDelete') {
     <!-- Page header -->
     <div class="ps-page-header">
       <div>
-        <h1 class="ps-page-title">Roles &amp; Permissions</h1>
-        <p class="ps-page-sub">Define what each staff role can access.</p>
+        <h1 class="ps-page-title">Roles</h1>
+        <p class="ps-page-sub">System-defined roles and their access levels. Roles are assigned when creating or editing a staff user.</p>
       </div>
-      <button @click="showAdd = true; addName = ''; addErr = ''" class="ps-btn ps-btn-primary">
-        <i class="ph ph-plus"></i> New Role
-      </button>
     </div>
 
-    <!-- Two-column layout -->
-    <div class="grid gap-5" style="grid-template-columns: 320px 1fr; align-items: start;">
+    <!-- Info banner -->
+    <div class="flex items-start gap-3 px-4 py-3.5 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700">
+      <i class="ph-fill ph-info text-lg mt-0.5 flex-shrink-0"></i>
+      <span>
+        Roles are <strong>built-in and fixed</strong> by the system. You can assign any of the roles below to your staff members when creating or editing a user account.
+      </span>
+    </div>
 
-      <!-- Roles list -->
-      <div class="ps-card">
-        <div class="px-5 pt-5 pb-3 border-b border-slate-100">
-          <h2 class="text-sm font-bold text-slate-700">Roles</h2>
-        </div>
-        <div class="p-3">
-          <div v-if="loading" class="space-y-2">
-            <div v-for="i in 4" :key="i" class="h-14 bg-slate-100 rounded-xl animate-pulse"></div>
+    <!-- Roles grid -->
+    <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">
+      <div
+        v-for="role in ROLES"
+        :key="role.name"
+        :class="['ps-card p-5 border', colorMap[role.color].border]"
+      >
+        <!-- Header -->
+        <div class="flex items-center gap-3 mb-3">
+          <div :class="['w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0', colorMap[role.color].bg, colorMap[role.color].text]">
+            <i :class="`ph-fill ${role.icon}`"></i>
           </div>
-          <div v-else-if="roles.length === 0" class="flex flex-col items-center gap-2 py-10 text-slate-400">
-            <i class="ph-fill ph-shield-check text-4xl text-slate-200"></i>
-            <p class="text-xs">No roles yet.</p>
-          </div>
-          <div v-else class="flex flex-col gap-1">
-            <div
-              v-for="r in roles" :key="r.roleId"
-              @click="openPermissions(r)"
-              :class="['flex items-center gap-2.5 p-3 rounded-xl cursor-pointer transition-all border',
-                activeRole?.roleId === r.roleId ? 'border-blue-300 bg-blue-50' : 'border-transparent hover:bg-slate-50']">
-              <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                <i class="ph-fill ph-shield-check text-indigo-500"></i>
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="text-sm font-bold text-slate-800 truncate">{{ r.roleName }}</div>
-                <div class="text-[11px] text-slate-400 mt-0.5">{{ r.roleType ?? 'Custom' }} · {{ r.permissionCount ?? 0 }} perms</div>
-              </div>
-              <button @click.stop="deleteRole(r)"
-                class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all">
-                <i class="ph ph-trash text-sm"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Permissions panel -->
-      <div v-if="activeRole" class="ps-card overflow-hidden">
-        <div class="ps-table-toolbar">
           <div>
-            <div class="ps-table-title">{{ activeRole.roleName }} — Permissions</div>
-            <div class="ps-table-subtitle">{{ permissions.length }} module{{ permissions.length !== 1 ? 's' : '' }}</div>
+            <div class="text-sm font-bold text-slate-800">{{ role.name }}</div>
           </div>
-          <button @click="savePermissions" :disabled="permSaving" class="ps-btn ps-btn-primary">
-            <i v-if="permSaving" class="ph ph-spinner animate-spin"></i>
-            <i v-else class="ph ph-floppy-disk"></i>
-            Save
-          </button>
         </div>
-        <div class="p-3">
-          <div v-if="permLoading" class="space-y-2">
-            <div v-for="i in 6" :key="i" class="h-10 bg-slate-100 rounded-xl animate-pulse"></div>
-          </div>
-          <table v-else class="ps-table">
-            <thead>
-              <tr>
-                <th>Module</th>
-                <th class="text-center" style="width: 80px">View</th>
-                <th class="text-center" style="width: 80px">Edit</th>
-                <th class="text-center" style="width: 80px">Delete</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="p in permissions" :key="p.module">
-                <td class="font-medium text-slate-700">{{ p.module }}</td>
-                <td class="text-center">
-                  <input type="checkbox" v-model="p.canView" class="w-4 h-4 rounded accent-blue-500 cursor-pointer" />
-                </td>
-                <td class="text-center">
-                  <input type="checkbox" v-model="p.canEdit" @change="onEditCheck(p, 'canEdit')" class="w-4 h-4 rounded accent-blue-500 cursor-pointer" />
-                </td>
-                <td class="text-center">
-                  <input type="checkbox" v-model="p.canDelete" @change="onEditCheck(p, 'canDelete')" class="w-4 h-4 rounded accent-blue-500 cursor-pointer" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      <div v-else class="ps-card flex flex-col items-center justify-center gap-3 h-48 text-slate-400">
-        <i class="ph ph-shield-check text-4xl text-slate-200"></i>
-        <p class="text-sm">Select a role to manage its permissions.</p>
+        <!-- Description -->
+        <p class="text-xs text-slate-500 leading-relaxed mb-4">{{ role.description }}</p>
+
+        <!-- Permissions -->
+        <div class="flex flex-wrap gap-1.5">
+          <span
+            v-for="perm in role.permissions"
+            :key="perm"
+            :class="['text-[11px] font-semibold px-2 py-0.5 rounded-full', colorMap[role.color].badge]"
+          >
+            {{ perm }}
+          </span>
+        </div>
       </div>
     </div>
 
-    <!-- Add Role Modal -->
-    <Teleport to="body">
-      <Transition name="ps-modal">
-        <div v-if="showAdd" class="ps-modal-backdrop" @click.self="showAdd = false">
-          <div class="ps-modal-card" style="max-width: 400px">
-            <div class="ps-modal-header">
-              <h3 class="ps-modal-title">New Role</h3>
-              <button class="ps-modal-close" @click="showAdd = false" aria-label="Close">
-                <i class="ph ph-x"></i>
-              </button>
-            </div>
-            <div class="ps-modal-body">
-              <div>
-                <label class="ps-label">Role Name *</label>
-                <input v-model="addName" placeholder="e.g. Store Manager" @keyup.enter="createRole" class="ps-input" />
-              </div>
-              <div v-if="addErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                {{ addErr }}
-              </div>
-            </div>
-            <div class="ps-modal-footer">
-              <button class="ps-btn ps-btn-outline" @click="showAdd = false">Cancel</button>
-              <button class="ps-btn ps-btn-primary" :disabled="addSaving" @click="createRole">
-                <i v-if="addSaving" class="ph ph-spinner animate-spin"></i>
-                {{ addSaving ? 'Creating…' : 'Create Role' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
   </div>
 </template>
-
-<style scoped>
-@media (max-width: 768px) {
-  div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
-}
-</style>

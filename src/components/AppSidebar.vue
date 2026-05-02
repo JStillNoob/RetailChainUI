@@ -135,13 +135,13 @@ const handleUpgrade = () => {
         <router-link to="/" class="brand-link" aria-label="RetailChain home">
           <img
             v-if="!collapsed"
-            :src="auth.companyLogo || '/src/assets/images/logo.png'"
+            src="/src/assets/images/logo.png"
             alt="RetailChain"
             class="brand-logo"
           />
           <img
             v-else
-            :src="auth.companyLogo || '/src/assets/images/logo-icon.png'"
+            src="/src/assets/images/logo-icon.png"
             alt="RetailChain"
             class="brand-icon"
           />
@@ -254,8 +254,11 @@ const handleUpgrade = () => {
         </template>
       </template>
 
-      <!-- ── Go Premium Ad ── -->
-      <div v-if="(auth.planName === 'Starter Plan' || auth.planName === 'No Plan') && auth.roleTypeName === 'TenantAdmin' && !collapsed && !isDark" class="premium-ad">
+    </nav>
+
+    <!-- ── Go Premium Ad (Sticky Bottom) ── -->
+    <div v-if="(auth.planName === 'Starter Plan' || auth.planName === 'No Plan') && auth.roleTypeName === 'TenantAdmin' && !collapsed && !isDark" class="premium-ad-container">
+      <div class="premium-ad">
         <div class="premium-ad-icon"><i class="ph-fill ph-crown"></i></div>
         <div class="premium-ad-content">
           <h4>Free Trial</h4>
@@ -263,9 +266,7 @@ const handleUpgrade = () => {
         </div>
         <button class="premium-ad-btn" @click="handleUpgrade">Go Premium</button>
       </div>
-
-    </nav>
-
+    </div>
 
   </aside>
 </template>
@@ -276,7 +277,7 @@ const handleUpgrade = () => {
 ══════════════════════════════════════════════════ */
 .app-sidebar {
   /* ── Light-theme tokens ── */
-  --sidebar-w:           256px;
+  --sidebar-w:           260px;
   --sidebar-w-collapsed:  72px;
   --sidebar-bg:          #ffffff;
   --sidebar-border:      #e2e8f0;
@@ -334,6 +335,7 @@ const handleUpgrade = () => {
 .brand-link {
   display: flex;
   align-items: center;
+  justify-content: center;
   text-decoration: none;
   min-width: 0;
   flex: 1;
@@ -552,9 +554,15 @@ const handleUpgrade = () => {
 }
 
 /* ── Premium Ad ── */
+.premium-ad-container {
+  padding: 0 12px 16px;
+  background: var(--sidebar-bg);
+  flex-shrink: 0;
+  border-top: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.02);
+  z-index: 10;
+}
 .premium-ad {
-  margin-top: auto;
-  margin-bottom: 20px;
   background: linear-gradient(135deg, #f8fafc, #f1f5f9);
   border: 1px solid #e2e8f0;
   border-radius: 16px;
@@ -563,6 +571,7 @@ const handleUpgrade = () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-top: 12px;
 }
 .premium-ad-icon {
   width: 32px; height: 32px;
@@ -635,7 +644,6 @@ const handleUpgrade = () => {
   --nav-active-shadow: none;
   --nav-active-color:  #a5b4fc;
   --nav-active-icon:   #818cf8;
-  --sidebar-w:         260px;
 }
 
 /* Dark — scrollbar */

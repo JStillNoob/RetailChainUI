@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "Pcbq/BQhcIo=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\DELL\\Desktop\\Coding\\vue\\RetailChainUI\\hashgen\\hashgen.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\DELL\\.nuget\\packages\\bcrypt.net-next\\4.0.3\\bcrypt.net-next.4.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}

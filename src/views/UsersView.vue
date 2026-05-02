@@ -8,20 +8,22 @@ defineOptions({ name: 'UsersView' })
 const { toast } = useToast()
 
 const users   = ref<any[]>([])
-const roles   = ref<any[]>([])
 const loading = ref(true)
 const search  = ref('')
 const openMenuId = ref<number | null>(null)
 
+// Static role list — matches TenantRoles.Valid in the backend
+const ROLES = [
+  { value: 'ProcurementOfficer', label: 'Procurement Officer' },
+  { value: 'WarehouseStaff',     label: 'Warehouse Staff' },
+  { value: 'LogisticsStaff',     label: 'Logistics Staff' },
+  { value: 'Cashier',            label: 'Cashier' },
+]
+
 async function load() {
   loading.value = true
   try {
-    const [u, r] = await Promise.all([
-      api.get('/tenant/users').then(r => r.data),
-      api.get('/tenant/roles').then(r => r.data),
-    ])
-    users.value = u
-    roles.value = r
+    users.value = await api.get('/tenant/users').then(r => r.data)
   } catch {
     toast('Failed to load users.', 'error')
   } finally {
@@ -54,18 +56,18 @@ const showModal = ref(false)
 const isEdit    = ref(false)
 const saving    = ref(false)
 const editId    = ref<number | null>(null)
-const form      = ref({ firstName: '', lastName: '', email: '', password: '', roleId: null as number | null, status: 'Active' })
+const form      = ref({ firstName: '', lastName: '', email: '', password: '', roleTypeName: '' as string, status: 'Active' })
 const formErr   = ref('')
 
 function openAdd() {
   isEdit.value = false; editId.value = null
-  form.value   = { firstName: '', lastName: '', email: '', password: '', roleId: null, status: 'Active' }
+  form.value   = { firstName: '', lastName: '', email: '', password: '', roleTypeName: '', status: 'Active' }
   formErr.value = ''; showModal.value = true
 }
 
 function openEdit(u: any) {
   isEdit.value = true; editId.value = u.userId
-  form.value   = { firstName: u.firstName, lastName: u.lastName, email: u.email, password: '', roleId: u.roleId ?? null, status: u.status }
+  form.value   = { firstName: u.firstName, lastName: u.lastName, email: u.email, password: '', roleTypeName: u.roleName ?? '', status: u.status }
   formErr.value = ''; showModal.value = true
   openMenuId.value = null
 }
@@ -74,13 +76,14 @@ async function save() {
   formErr.value = ''
   if (!form.value.firstName.trim() || !form.value.email.trim()) { formErr.value = 'First name and email are required.'; return }
   if (!isEdit.value && !form.value.password.trim()) { formErr.value = 'Password is required for new users.'; return }
+  if (!form.value.roleTypeName) { formErr.value = 'Please select a role.'; return }
   saving.value = true
   try {
     if (isEdit.value) {
-      await api.put(`/tenant/users/${editId.value}`, { firstName: form.value.firstName, lastName: form.value.lastName, status: form.value.status, roleId: form.value.roleId, password: form.value.password || undefined })
+      await api.put(`/tenant/users/${editId.value}`, { firstName: form.value.firstName, lastName: form.value.lastName, status: form.value.status, roleTypeName: form.value.roleTypeName, password: form.value.password || undefined })
       toast('User updated.')
     } else {
-      await api.post('/tenant/users', { firstName: form.value.firstName, lastName: form.value.lastName, email: form.value.email, password: form.value.password, roleId: form.value.roleId })
+      await api.post('/tenant/users', { firstName: form.value.firstName, lastName: form.value.lastName, email: form.value.email, password: form.value.password, roleTypeName: form.value.roleTypeName })
       toast('User created.')
     }
     showModal.value = false; await load()
@@ -246,10 +249,10 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                   <input v-model="form.password" type="password" placeholder="••••••••" class="ps-input" />
                 </div>
                 <div>
-                  <label class="ps-label">Role</label>
-                  <select v-model="form.roleId" class="ps-input">
-                    <option :value="null">— No Role —</option>
-                    <option v-for="r in roles" :key="r.roleId" :value="r.roleId">{{ r.roleName }}</option>
+                  <label class="ps-label">Role *</label>
+                  <select v-model="form.roleTypeName" class="ps-input">
+                    <option value="">— Select Role —</option>
+                    <option v-for="r in ROLES" :key="r.value" :value="r.value">{{ r.label }}</option>
                   </select>
                 </div>
                 <div v-if="isEdit">
