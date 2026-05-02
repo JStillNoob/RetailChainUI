@@ -134,7 +134,7 @@ const handleLogin = async () => {
                   id="login-email"
                   v-model="email"
                   type="email"
-                  placeholder="admin@retailchain.com"
+                  placeholder="you@example.com"
                   autocomplete="off"
                   required
                   class="auth-field__input"

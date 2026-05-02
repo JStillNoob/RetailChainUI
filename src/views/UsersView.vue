@@ -242,11 +242,11 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                 </div>
                 <div v-if="!isEdit">
                   <label class="ps-label">Email *</label>
-                  <input v-model="form.email" type="email" placeholder="user@email.com" class="ps-input" />
+                  <input v-model="form.email" type="email" placeholder="user@email.com" class="ps-input" autocomplete="off" />
                 </div>
                 <div>
                   <label class="ps-label">{{ isEdit ? 'New Password (blank to keep)' : 'Password *' }}</label>
-                  <input v-model="form.password" type="password" placeholder="••••••••" class="ps-input" />
+                  <input v-model="form.password" type="password" placeholder="••••••••" class="ps-input" autocomplete="new-password" />
                 </div>
                 <div>
                   <label class="ps-label">Role *</label>
