@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { useConfirm } from '../composables/useConfirm'
 import { ref, onMounted, computed } from 'vue'
 import { getProducts, createProduct, deleteProduct, getProductAttrTemplates, saveProductAttrValues } from '../services/tenant.ts'
 import { useAuthStore } from '../stores/auth.ts'
 
 defineOptions({ name: 'ProductsView' })
 
+const { confirmDialog } = useConfirm()
 const auth = useAuthStore()
 
 const products  = ref<any[]>([])
@@ -106,7 +108,7 @@ async function submitProduct() {
 
 async function removeProduct(id: number) {
   openMenuId.value = null
-  if (!confirm('Delete this product?')) return
+  if (!await confirmDialog('Delete this product?')) return
   try { await deleteProduct(id) }
   catch (err: any) { alert('Delete failed: ' + (err?.response?.data?.message || err.message)) }
   await loadProducts()

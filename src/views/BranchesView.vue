@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useConfirm } from '../composables/useConfirm'
 import { ref, computed, onMounted } from 'vue'
 import {
   getBranches, createBranch, updateBranch, deleteBranch,
@@ -9,6 +10,7 @@ import { useToast } from '../composables/useToast.ts'
 
 defineOptions({ name: 'BranchesView' })
 
+const { confirmDialog } = useConfirm()
 const { toast } = useToast()
 
 // ── Branches list ────────────────────────────────────────────────────────────
@@ -68,7 +70,7 @@ async function saveBranch() {
 }
 
 async function removeBranch(b: any) {
-  if (!confirm(`Delete branch "${b.branchName}"? This cannot be undone.`)) return
+  if (!await confirmDialog(`Delete branch "${b.branchName}"? This cannot be undone.`)) return
   try {
     await deleteBranch(b.branchId)
     toast('Branch deleted.')

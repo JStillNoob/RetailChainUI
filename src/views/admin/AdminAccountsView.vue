@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useConfirm } from '../../composables/useConfirm'
 import { ref, computed, onMounted } from 'vue'
 import { getAdmins, createAdmin, deleteAdmin } from '../../services/superadmin.ts'
 import { useAuthStore } from '../../stores/auth.ts'
@@ -15,6 +16,7 @@ interface AdminUser {
 
 defineOptions({ name: 'AdminAccountsView' })
 
+const { confirmDialog } = useConfirm()
 const auth      = useAuthStore()
 const admins    = ref<AdminUser[]>([])
 const loading   = ref(true)
@@ -54,7 +56,7 @@ async function submit() {
 
 async function remove(id: number) {
   if (id === auth.userId)   { alert('Cannot delete your own account.'); return }
-  if (!confirm('Delete this admin?')) return
+  if (!await confirmDialog('Delete this admin?')) return
   await deleteAdmin(id); await load()
 }
 

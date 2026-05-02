@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { useConfirm } from '../composables/useConfirm'
 import { ref, computed, onMounted, nextTick } from 'vue'
 import api from '../services/api.ts'
 import { useToast } from '../composables/useToast.ts'
 
 defineOptions({ name: 'PosView' })
 
+const { confirmDialog } = useConfirm()
 const { toast } = useToast()
 
 interface ApiProduct {
@@ -77,7 +79,7 @@ function decrement(item: CartItem, idx: number) {
 function removeFromCart(idx: number) { cart.value.splice(idx, 1) }
 function clearCart() {
   if (cart.value.length === 0) return
-  if (confirm('Clear the cart?')) { cart.value = []; customerName.value = '' }
+  if (await confirmDialog('Clear the cart?')) { cart.value = []; customerName.value = '' }
 }
 
 const cartTotal = computed(() => cart.value.reduce((s, i) => s + i.unitPrice * i.quantity, 0))

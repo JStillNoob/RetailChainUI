@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useConfirm } from '../composables/useConfirm'
 import { ref, computed, onMounted } from 'vue'
 import { getForecast, generateForecast } from '../services/forecastService.ts'
 import ForecastChart from '../components/ForecastChart.vue'
@@ -7,6 +8,7 @@ import { useAuthStore } from '../stores/auth.ts'
 
 defineOptions({ name: 'ForecastView' })
 
+const { confirmDialog } = useConfirm()
 const { toast } = useToast()
 const auth = useAuthStore()
 
@@ -57,7 +59,7 @@ async function generate() {
     alert('Free Trial Limit: Data Forecasting is only available on Premium plans. Please upgrade to unlock this feature.')
     return
   }
-  if (!confirm('Generate demand forecast for all active products? This will overwrite the current forecast for next month.')) return
+  if (!await confirmDialog('Generate demand forecast for all active products? This will overwrite the current forecast for next month.')) return
   generating.value = true
   try {
     const res = await generateForecast()

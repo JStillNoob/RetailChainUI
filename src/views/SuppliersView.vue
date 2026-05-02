@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useConfirm } from '../composables/useConfirm'
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
 import { useAuthStore } from '../stores/auth.ts'
@@ -6,6 +7,7 @@ import { useToast } from '../composables/useToast.ts'
 
 defineOptions({ name: 'SuppliersView' })
 
+const { confirmDialog } = useConfirm()
 const { toast } = useToast()
 const auth      = useAuthStore()
 
@@ -88,7 +90,7 @@ async function save() {
 
 async function deactivate(s: any) {
   openMenuId.value = null
-  if (!confirm(`Deactivate "${s.name}"?`)) return
+  if (!await confirmDialog(`Deactivate "${s.name}"?`)) return
   try { await api.delete(`${BASE.value}/${s.supplierId}`); toast('Supplier deactivated.'); await load() }
   catch { toast('Failed to deactivate supplier.', 'error') }
 }

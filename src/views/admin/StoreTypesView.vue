@@ -4,8 +4,11 @@ import {
   getStoreTypes, createStoreType, deleteStoreType, archiveStoreType,
   getStoreTypeTemplates, createTemplate, deleteTemplate,
 } from '../../services/superadmin.ts'
+import { useConfirm } from '../../composables/useConfirm'
 
 defineOptions({ name: 'StoreTypesView' })
+
+const { confirmDialog } = useConfirm()
 
 const types      = ref<any[]>([])
 const loading    = ref(true)
@@ -31,14 +34,14 @@ async function submit() {
   }
 }
 async function remove(id: number) {
-  if (!confirm('Delete this store type? This will also remove all its attribute templates.')) return
+  if (!await confirmDialog('Delete this store type? This will also remove all its attribute templates.', { confirmText: 'Delete' })) return
   await deleteStoreType(id)
   await load()
 }
 
 async function archive(id: number, currentStatus: boolean) {
   const action = currentStatus ? 'Restore' : 'Archive'
-  if (!confirm(`${action} this store type?`)) return
+  if (!await confirmDialog(`${action} this store type?`, { confirmText: action, confirmColor: currentStatus ? 'bg-orange-500 hover:bg-orange-600' : 'bg-red-600 hover:bg-red-700' })) return
   await archiveStoreType(id)
   await load()
 }
@@ -87,7 +90,7 @@ async function submitTemplate() {
 }
 
 async function removeTemplate(templateId: number) {
-  if (!confirm('Delete this attribute template?')) return
+  if (!await confirmDialog('Delete this attribute template?', { confirmText: 'Delete' })) return
   await deleteTemplate(selectedType.value.storeTypeId, templateId)
   await loadTemplates(selectedType.value.storeTypeId)
   await load()

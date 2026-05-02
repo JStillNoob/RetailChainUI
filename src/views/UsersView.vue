@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { useConfirm } from '../composables/useConfirm'
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
 import { useToast } from '../composables/useToast.ts'
 
 defineOptions({ name: 'UsersView' })
 
+const { confirmDialog } = useConfirm()
 const { toast } = useToast()
 
 const users   = ref<any[]>([])
@@ -94,7 +96,7 @@ async function save() {
 
 async function deactivate(u: any) {
   openMenuId.value = null
-  if (!confirm(`Deactivate ${u.firstName} ${u.lastName}?`)) return
+  if (!await confirmDialog(`Deactivate ${u.firstName} ${u.lastName}?`)) return
   try { await api.delete(`/tenant/users/${u.userId}`); toast('User deactivated.'); await load() }
   catch { toast('Failed to deactivate user.', 'error') }
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useConfirm } from '../composables/useConfirm'
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
 import { getBranches } from '../services/tenant.ts'
@@ -6,6 +7,7 @@ import { useToast } from '../composables/useToast.ts'
 
 defineOptions({ name: 'ProcurementView' })
 
+const { confirmDialog } = useConfirm()
 const { toast } = useToast()
 
 const orders       = ref<any[]>([])
@@ -119,7 +121,7 @@ async function createPo() {
 }
 
 async function cancelPo(po: any) {
-  if (!confirm(`Cancel PO #${po.poId} from ${po.supplierName}? This cannot be undone.`)) return
+  if (!await confirmDialog(`Cancel PO #${po.poId} from ${po.supplierName}? This cannot be undone.`)) return
   try { await api.delete(`/procurement/purchase-orders/${po.poId}`); toast('Purchase order cancelled.'); await load() }
   catch (e: any) { toast(e.response?.data?.message ?? 'Failed to cancel PO.', 'error') }
 }

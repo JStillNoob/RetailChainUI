@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useConfirm } from '../../composables/useConfirm'
 import { ref, computed, onMounted } from 'vue'
 import { getPlans, createPlan, deletePlan, getSubscriptions } from '../../services/superadmin.ts'
 
 defineOptions({ name: 'SubscriptionsView' })
 
+const { confirmDialog } = useConfirm()
 const plans         = ref<any[]>([])
 const subscriptions = ref<any[]>([])
 const loading       = ref(true)
@@ -27,7 +29,7 @@ async function submitPlan() {
   await load()
 }
 async function removePlan(id: number) {
-  if (!confirm('Delete this plan?')) return
+  if (!await confirmDialog('Delete this plan?')) return
   await deletePlan(id); await load()
 }
 

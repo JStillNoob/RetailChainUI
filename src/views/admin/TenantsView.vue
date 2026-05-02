@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useConfirm } from '../../composables/useConfirm'
 import { ref, computed, onMounted } from 'vue'
 import { getTenants, updateTenantStatus, deleteTenant } from '../../services/superadmin.ts'
 
 defineOptions({ name: 'TenantsView' })
 
+const { confirmDialog } = useConfirm()
 const tenants   = ref<any[]>([])
 const total     = ref(0)
 const page      = ref(1)
@@ -44,7 +46,7 @@ async function changeStatus(id: number, status: string) {
 
 async function remove(id: number) {
   openMenuId.value = null
-  if (!confirm('Delete this tenant? This cannot be undone.')) return
+  if (!await confirmDialog('Delete this tenant? This cannot be undone.')) return
   deleting.value = id
   try { await deleteTenant(id); await load() }
   finally { deleting.value = null }
