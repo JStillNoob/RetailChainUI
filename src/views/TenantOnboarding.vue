@@ -13,9 +13,9 @@ const auth   = useAuthStore()
 const step = ref(1) // 1=Business Setup, 2=Plan Selection, 3=Done
 
 // Form data for Step 1
-const storeName = ref(auth.companyName || '')
-const firstName = ref(auth.firstName || '')
-const lastName = ref(auth.lastName || '')
+const storeName = ref('')
+const firstName = ref('')
+const lastName = ref('')
 const storeTypeId = ref<number | ''>('')
 const contactNumber = ref('')
 const street = ref('')

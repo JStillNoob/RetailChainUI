@@ -177,7 +177,7 @@ const handleRegister = async () => {
             <span>{{ success }}</span>
           </div>
 
-          <form @submit.prevent="handleRegister" id="register-form" class="mt-8">
+          <form @submit.prevent="handleRegister" id="register-form" class="mt-8" autocomplete="off">
             <!-- Email -->
             <div class="fade-up delay-100">
               <label for="reg-email" class="block text-sm font-bold text-slate-800 mb-2 ml-1">
@@ -190,7 +190,7 @@ const handleRegister = async () => {
                   v-model="email"
                   type="email"
                   placeholder="you@example.com"
-                  autocomplete="email"
+                  autocomplete="off"
                   required
                   class="auth-field__input"
                 />

@@ -122,7 +122,7 @@ const handleLogin = async () => {
             <span>{{ error }}</span>
           </div>
 
-          <form @submit.prevent="handleLogin" id="login-form" class="mt-8">
+          <form @submit.prevent="handleLogin" id="login-form" class="mt-8" autocomplete="off">
             <!-- Email -->
             <div class="fade-up delay-100">
               <label for="login-email" class="block text-sm font-bold text-slate-800 mb-2 ml-1">
@@ -135,7 +135,7 @@ const handleLogin = async () => {
                   v-model="email"
                   type="email"
                   placeholder="admin@retailchain.com"
-                  autocomplete="email"
+                  autocomplete="off"
                   required
                   class="auth-field__input"
                 />
