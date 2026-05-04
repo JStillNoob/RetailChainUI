@@ -13,7 +13,10 @@ const saving       = ref(false)
 const passwordForm = ref({ current: '', new: '', confirm: '' })
 const companyName  = ref(auth.companyName || '')
 const firstNameVal = ref(auth.firstName || '')
+const middleNameVal = ref(auth.middleName || '')
 const lastNameVal  = ref(auth.lastName || '')
+const phoneVal     = ref(auth.phone || '')
+const dobVal       = ref(auth.dateOfBirth || '')
 
 const canSeeCompany = computed(() => auth.isTenantAdmin || auth.isSuperAdmin)
 const canSeeSystem  = computed(() => auth.isSuperAdmin)
@@ -58,7 +61,7 @@ function pickImage(slot: 'avatar' | 'company' | 'system') {
       if (slot === 'avatar') {
         auth.profilePhoto = url
         localStorage.setItem('profilePhoto', url)
-        await updateProfile(firstNameVal.value, lastNameVal.value, url)
+        await updateProfile(firstNameVal.value, middleNameVal.value, lastNameVal.value, phoneVal.value, dobVal.value, url)
       } else if (slot === 'company') {
         auth.companyLogo = url
         localStorage.setItem('companyLogo', url)
@@ -78,9 +81,12 @@ function pickImage(slot: 'avatar' | 'company' | 'system') {
 async function saveAccount() {
   saving.value = true
   try {
-    await updateProfile(firstNameVal.value, lastNameVal.value, auth.profilePhoto)
+    await updateProfile(firstNameVal.value, middleNameVal.value, lastNameVal.value, phoneVal.value, dobVal.value, auth.profilePhoto)
     auth.firstName = firstNameVal.value
+    auth.middleName = middleNameVal.value
     auth.lastName  = lastNameVal.value
+    auth.phone     = phoneVal.value
+    auth.dateOfBirth = dobVal.value
     showToast('Personal info updated!')
   } catch (err) {
     alert('Save failed: ' + (err as Error).message)
@@ -194,8 +200,20 @@ const tabs = computed(() => [
               <input v-model="firstNameVal" type="text" class="ps-input" />
             </div>
             <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-semibold text-slate-700">Middle Name</label>
+              <input v-model="middleNameVal" type="text" class="ps-input" />
+            </div>
+            <div class="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
               <label class="text-xs font-semibold text-slate-700">Last Name</label>
               <input v-model="lastNameVal" type="text" class="ps-input" />
+            </div>
+            <div class="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+              <label class="text-xs font-semibold text-slate-700">Phone Number</label>
+              <input v-model="phoneVal" type="text" class="ps-input" />
+            </div>
+            <div class="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+              <label class="text-xs font-semibold text-slate-700">Date of Birth</label>
+              <input v-model="dobVal" type="date" class="ps-input" />
             </div>
             <div class="col-span-2 flex flex-col gap-1.5">
               <label class="text-xs font-semibold text-slate-700">Email Address</label>

@@ -4,26 +4,50 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.ts'
 import { saveBusinessDetails, getSubscriptionPlans, subscribeToPlan } from '../services/auth.ts'
 import { getStoreTypes } from '../services/superadmin.ts'
+import { watch } from 'vue'
+import { VueTelInput } from 'vue-tel-input'
+import 'vue-tel-input/vue-tel-input.css'
+import { Country, State, City } from 'country-state-city'
 
 defineOptions({ name: 'TenantOnboarding' })
 
 const router = useRouter()
 const auth   = useAuthStore()
 
-const step = ref(1) // 1=Business Setup, 2=Plan Selection, 3=Done
+const step = ref(1) // 1=Personal Info, 2=Business Setup, 3=Plan Selection, 4=Done
 
 // Form data for Step 1
-const storeName = ref('')
 const firstName = ref('')
+const middleName = ref('')
 const lastName = ref('')
-const storeTypeId = ref<number | ''>('')
+const dateOfBirth = ref('')
 const contactNumber = ref('')
+
+// Form data for Step 2
+const storeName = ref('')
+const storeTypeId = ref<number | ''>('')
+
+const countryCode = ref('')
+const stateCode = ref('')
+const cityName = ref('')
+
+const countries = ref(Country.getAllCountries())
+const states = computed(() => countryCode.value ? State.getStatesOfCountry(countryCode.value) : [])
+const cities = computed(() => (countryCode.value && stateCode.value) ? City.getCitiesOfState(countryCode.value, stateCode.value) : [])
+
 const street = ref('')
-const city = ref('')
-const province = ref('')
 const zipCode = ref('')
+
 const savingBusiness = ref(false)
 const error = ref('')
+
+watch(countryCode, () => {
+  stateCode.value = ''
+  cityName.value = ''
+})
+watch(stateCode, () => {
+  cityName.value = ''
+})
 
 // Form data for Step 2
 const plans = ref<any[]>([])
@@ -54,31 +78,37 @@ onMounted(async () => {
 })
 
 async function submitBusinessDetails() {
-  if (!storeName.value || !firstName.value || !storeTypeId.value || !contactNumber.value) {
+  if (!storeName.value || !storeTypeId.value || !countryCode.value || !stateCode.value || !cityName.value) {
     error.value = 'Please fill in all required fields.'
     return
   }
   error.value = ''
   savingBusiness.value = true
   try {
+    const countryName = Country.getCountryByCode(countryCode.value)?.name || ''
+    const stateName = State.getStateByCodeAndCountry(stateCode.value, countryCode.value)?.name || ''
+
     await saveBusinessDetails({
       storeName: storeName.value,
       firstName: firstName.value,
+      middleName: middleName.value,
       lastName: lastName.value,
-      storeTypeId: Number(storeTypeId.value),
+      dateOfBirth: dateOfBirth.value || null,
       contactNumber: contactNumber.value,
+      storeTypeId: Number(storeTypeId.value),
+      country: countryName,
       street: street.value,
-      city: city.value,
-      province: province.value,
+      city: cityName.value,
+      province: stateName,
       zipCode: zipCode.value
     })
     
     // Auth updates via profile fetch
     await auth.fetchProfile()
     
-    // Load plans for Step 2
+    // Load plans for Step 3
     loadingPlans.value = true
-    step.value = 2
+    step.value = 3
     plans.value = await getSubscriptionPlans()
   } catch (err: any) {
     error.value = 'Failed to save business details: ' + (err.message || 'Unknown error')
@@ -116,7 +146,7 @@ async function confirmSubscription() {
     if (res.checkoutUrl) {
       window.location.href = res.checkoutUrl // Redirect to PayMongo
     } else {
-      step.value = 3 // Free plan, go to done
+      step.value = 4 // Free plan, go to done
     }
   } catch (err: any) {
     error.value = 'Failed to subscribe: ' + (err.message || 'Unknown error')
@@ -130,9 +160,10 @@ async function finish() {
 }
 
 const steps = [
-  { n: 1, label: 'Business Details' },
-  { n: 2, label: 'Select Plan' },
-  { n: 3, label: 'Done' },
+  { n: 1, label: 'Personal Info' },
+  { n: 2, label: 'Business Details' },
+  { n: 3, label: 'Select Plan' },
+  { n: 4, label: 'Done' },
 ]
 
 const getPlanColor = (index: number) => {
@@ -147,7 +178,7 @@ const getPlanColor = (index: number) => {
     <div class="ob-bg-left"></div>
     <div class="ob-bg-right"></div>
 
-    <div class="ob-card" :class="{'ob-card-wide': step === 2}">
+    <div class="ob-card" :class="{'ob-card-wide': step === 3}">
       <div class="ob-brand">
         <img src="@/assets/images/logo.png" alt="RetailChain" class="ob-logo" />
       </div>
@@ -165,9 +196,55 @@ const getPlanColor = (index: number) => {
         </template>
       </div>
 
-      <!-- ══ STEP 1: BUSINESS SETUP ══ -->
+      <!-- ══ STEP 1: PERSONAL INFO ══ -->
       <Transition name="slide" mode="out-in">
         <div v-if="step === 1" class="ob-content" key="step1">
+          <h1 class="ob-heading">Let's start with you</h1>
+          <p class="ob-sub">Please provide your personal information.</p>
+
+          <div class="ob-form">
+            <div class="ob-form-row">
+              <div class="ob-form-group">
+                <label>First Name <span class="req">*</span></label>
+                <input v-model="firstName" placeholder="Juan" />
+              </div>
+              <div class="ob-form-group">
+                <label>Middle Name</label>
+                <input v-model="middleName" placeholder="Reyes" />
+              </div>
+            </div>
+            <div class="ob-form-group" style="margin-bottom: 14px">
+              <label>Last Name <span class="req">*</span></label>
+              <input v-model="lastName" placeholder="dela Cruz" />
+            </div>
+            <div class="ob-form-row">
+              <div class="ob-form-group">
+                <label>Date of Birth</label>
+                <input type="date" v-model="dateOfBirth" />
+              </div>
+              <div class="ob-form-group">
+                <label>Contact Number <span class="req">*</span></label>
+                <VueTelInput v-model="contactNumber" mode="international" defaultCountry="PH" :inputOptions="{ placeholder: 'Enter phone number' }" :dropdownOptions="{ showFlags: true, showDialCodeInSelection: true, showSearchBox: true }" />
+              </div>
+            </div>
+
+            <div v-if="error" class="ob-error">
+              <i class="ph-fill ph-warning-circle"></i> {{ error }}
+            </div>
+          </div>
+
+          <div class="ob-actions">
+            <div></div>
+            <button class="ob-btn-primary" @click="() => { if(!firstName || !lastName || !contactNumber) error = 'First name, last name, and contact number are required'; else { error=''; step = 2; } }">
+              Next Step <i class="ph ph-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- ══ STEP 2: BUSINESS SETUP ══ -->
+      <Transition name="slide" mode="out-in">
+        <div v-if="step === 2" class="ob-content" key="step2">
           <h1 class="ob-heading">Tell us about your business</h1>
           <p class="ob-sub">We need a few details to set up your store's operating environment.</p>
 
@@ -188,29 +265,38 @@ const getPlanColor = (index: number) => {
 
             <div class="ob-form-row">
               <div class="ob-form-group">
-                <label>Owner First Name <span class="req">*</span></label>
-                <input v-model="firstName" placeholder="Juan" />
+                <label>Country <span class="req">*</span></label>
+                <select v-model="countryCode" class="rc-select">
+                  <option value="" disabled>Select Country</option>
+                  <option v-for="c in countries" :key="c.isoCode" :value="c.isoCode">{{ c.name }}</option>
+                </select>
               </div>
               <div class="ob-form-group">
-                <label>Owner Last Name</label>
-                <input v-model="lastName" placeholder="dela Cruz" />
+                <label>State/Region <span class="req">*</span></label>
+                <select v-model="stateCode" :disabled="!countryCode" class="rc-select">
+                  <option value="" disabled>Select State/Region</option>
+                  <option v-for="s in states" :key="s.isoCode" :value="s.isoCode">{{ s.name }}</option>
+                </select>
               </div>
-            </div>
-
-            <div class="ob-form-group" style="margin-bottom: 14px">
-              <label>Contact Number <span class="req">*</span></label>
-              <input v-model="contactNumber" placeholder="+63 900 000 0000" />
             </div>
 
             <div class="ob-form-row">
               <div class="ob-form-group">
                 <label>City <span class="req">*</span></label>
-                <input v-model="city" placeholder="Manila" />
+                <select v-model="cityName" :disabled="!stateCode" class="rc-select">
+                  <option value="" disabled>Select City</option>
+                  <option v-for="ci in cities" :key="ci.name" :value="ci.name">{{ ci.name }}</option>
+                </select>
               </div>
               <div class="ob-form-group">
-                <label>Province</label>
-                <input v-model="province" placeholder="Metro Manila" />
+                <label>Zip Code</label>
+                <input v-model="zipCode" placeholder="1000" />
               </div>
+            </div>
+
+            <div class="ob-form-group" style="margin-bottom: 14px">
+              <label>Street / Building</label>
+              <input v-model="street" placeholder="123 Retail St." />
             </div>
 
             <div v-if="error" class="ob-error">
@@ -219,7 +305,9 @@ const getPlanColor = (index: number) => {
           </div>
 
           <div class="ob-actions">
-            <div></div>
+            <button class="ob-btn-secondary" @click="step = 1">
+              <i class="ph ph-arrow-left"></i> Back
+            </button>
             <button class="ob-btn-primary" @click="submitBusinessDetails" :disabled="savingBusiness">
               <i :class="savingBusiness ? 'ph ph-circle-notch spin' : ''"></i>
               {{ savingBusiness ? 'Saving...' : 'Next Step' }} <i v-if="!savingBusiness" class="ph ph-arrow-right"></i>
@@ -230,7 +318,7 @@ const getPlanColor = (index: number) => {
 
       <!-- ══ STEP 2: PLAN SELECTION ══ -->
       <Transition name="slide" mode="out-in">
-        <div v-if="step === 2" class="ob-content" key="step2">
+        <div v-if="step === 3" class="ob-content" key="step3">
           <h1 class="ob-heading">Select your Subscription Plan</h1>
           <p class="ob-sub">Choose a plan that fits your retail operations. Cancel anytime.</p>
 
@@ -284,7 +372,7 @@ const getPlanColor = (index: number) => {
 
       <!-- ══ STEP 3: DONE ══ -->
       <Transition name="slide" mode="out-in">
-        <div v-if="step === 3" class="ob-content ob-done" key="step3">
+        <div v-if="step === 4" class="ob-content ob-done" key="step4">
           <div class="ob-done-icon">
             <i class="ph-fill ph-check-circle"></i>
           </div>
@@ -369,11 +457,13 @@ const getPlanColor = (index: number) => {
 .ob-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
 .ob-form-group { display: flex; flex-direction: column; gap: 5px; }
 .ob-form-group label { font-size: 12px; font-weight: 600; color: #374151; }
-.ob-form-group input, .rc-select {
+.ob-form-group input, .rc-select, .vue-tel-input {
   border: 1.5px solid #e2e8f0; border-radius: 9px; padding: 10px 13px;
   font-size: 13.5px; color: #0f172a; background: #fff; font-family: inherit;
   outline: none; transition: border-color 0.15s, box-shadow 0.15s; width: 100%; box-sizing: border-box;
 }
+.vue-tel-input { padding: 0; box-shadow: none !important; }
+.vue-tel-input:focus-within { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
 .ob-form-group input:focus, .rc-select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
 .req { color: #ef4444; }
 
@@ -387,6 +477,8 @@ const getPlanColor = (index: number) => {
 .ob-btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(99,102,241,0.45); }
 .ob-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .ob-btn-wide { width: 100%; justify-content: center; max-width: 300px; }
+.ob-btn-secondary { display: inline-flex; align-items: center; gap: 8px; background: #fff; color: #475569; border: 1.5px solid #e2e8f0; padding: 12px 26px; border-radius: 11px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.18s; }
+.ob-btn-secondary:hover { background: #f8fafc; border-color: #cbd5e1; }
 
 /* ── Done step ── */
 .ob-done-icon { width: 80px; height: 80px; background: rgba(34,197,94,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 44px; color: #22c55e; margin-bottom: 20px; }

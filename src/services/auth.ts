@@ -6,7 +6,10 @@ export interface LoginResponse {
   userId: number
   tenantId: number
   firstName: string
+  middleName?: string
   lastName: string
+  phone?: string
+  dateOfBirth?: string
   email: string
   profilePhotoUrl?: string
   onboardingComplete?: boolean
@@ -58,8 +61,8 @@ export async function login(email: string, password: string): Promise<LoginRespo
 }
 
 // PATCH /api/auth/profile
-export async function updateProfile(firstName: string, lastName: string, profilePhotoUrl: string | null): Promise<void> {
-  await api.patch('/auth/profile', { firstName, lastName, profilePhotoUrl })
+export async function updateProfile(firstName: string, middleName: string, lastName: string, phone: string, dateOfBirth: string, profilePhotoUrl: string | null): Promise<void> {
+  await api.patch('/auth/profile', { firstName, middleName, lastName, phone, dateOfBirth, profilePhotoUrl })
 }
 
 // GET /api/auth/profile

@@ -9,7 +9,10 @@ export const useAuthStore = defineStore('auth', () => {
   const userId       = ref<number | null>(null)
   const tenantId     = ref<number | null>(null)
   const firstName    = ref<string>('')
+  const middleName   = ref<string>('')
   const lastName     = ref<string>('')
+  const phone        = ref<string>('')
+  const dateOfBirth  = ref<string>('')
   const email        = ref<string>('')
   const roleTypeName = ref<string>('')
   const planName     = ref<string>('No Plan')
@@ -38,7 +41,10 @@ export const useAuthStore = defineStore('auth', () => {
       userId.value       = stored.userId       as number
       tenantId.value     = stored.tenantId     as number
       firstName.value    = stored.firstName    as string
+      middleName.value   = (stored.middleName as string) || ''
       lastName.value     = stored.lastName     as string
+      phone.value        = (stored.phone as string) || ''
+      dateOfBirth.value  = (stored.dateOfBirth as string) || ''
       email.value        = stored.email        as string
       roleTypeName.value = stored.roleTypeName as string
       planName.value     = (stored.planName    as string) || 'No Plan'
@@ -67,7 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoggedIn   = computed(() => !!token.value && isTokenValid())
   const isSuperAdmin = computed(() => roleTypeName.value === 'SuperAdmin')
   const isTenantAdmin = computed(() => roleTypeName.value === 'TenantAdmin')
-  const fullName     = computed(() => `${firstName.value} ${lastName.value}`.trim())
+  const fullName     = computed(() => [firstName.value, middleName.value, lastName.value].filter(Boolean).join(' '))
   const initials     = computed(() => {
     const f = firstName.value?.[0] ?? ''
     const l = lastName.value?.[0]  ?? ''
@@ -81,7 +87,10 @@ export const useAuthStore = defineStore('auth', () => {
     userId.value       = data.userId
     tenantId.value     = data.tenantId
     firstName.value    = data.firstName
+    middleName.value   = data.middleName || ''
     lastName.value     = data.lastName
+    phone.value        = data.phone || ''
+    dateOfBirth.value  = data.dateOfBirth || ''
     email.value        = data.email
     roleTypeName.value = data.roleTypeName
     planName.value     = data.planName || 'No Plan'
@@ -118,7 +127,10 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const data = await getProfile()
       firstName.value    = data.firstName || ''
+      middleName.value   = data.middleName || ''
       lastName.value     = data.lastName || ''
+      phone.value        = data.phone || ''
+      dateOfBirth.value  = data.dateOfBirth || ''
       email.value        = data.email || ''
       roleTypeName.value = data.roleTypeName || ''
       planName.value     = data.planName || 'No Plan'
@@ -137,7 +149,10 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('user', JSON.stringify({
           ...stored,
           firstName: data.firstName,
+          middleName: data.middleName,
           lastName: data.lastName,
+          phone: data.phone,
+          dateOfBirth: data.dateOfBirth,
           planName: data.planName,
           planId: data.planId,
           onboardingComplete: data.onboardingComplete,
@@ -155,7 +170,10 @@ export const useAuthStore = defineStore('auth', () => {
     userId.value       = null
     tenantId.value     = null
     firstName.value    = ''
+    middleName.value   = ''
     lastName.value     = ''
+    phone.value        = ''
+    dateOfBirth.value  = ''
     email.value        = ''
     roleTypeName.value = ''
     planName.value     = 'No Plan'
@@ -172,7 +190,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     // State
-    token, userId, tenantId, firstName, lastName, email, roleTypeName,
+    token, userId, tenantId, firstName, middleName, lastName, phone, dateOfBirth, email, roleTypeName,
     profilePhoto, companyLogo, companyName, systemLogo, onboardingComplete,
     planName, planId,
     // Getters
