@@ -8,6 +8,7 @@ import { watch } from 'vue'
 import { VueTelInput } from 'vue-tel-input'
 import 'vue-tel-input/vue-tel-input.css'
 import { Country, State, City } from 'country-state-city'
+import { citiesMunicipalities } from 'ph-locations'
 
 defineOptions({ name: 'TenantOnboarding' })
 
@@ -33,7 +34,22 @@ const cityName = ref('')
 
 const countries = ref(Country.getAllCountries())
 const states = computed(() => countryCode.value ? State.getStatesOfCountry(countryCode.value) : [])
-const cities = computed(() => (countryCode.value && stateCode.value) ? City.getCitiesOfState(countryCode.value, stateCode.value) : [])
+const cities = computed(() => {
+  if (countryCode.value && stateCode.value) {
+    if (countryCode.value === 'PH') {
+      try {
+        const phCities = citiesMunicipalities.filter(c => c.province === `PH-${stateCode.value}`)
+        if (phCities.length > 0) {
+          return phCities.map(c => ({ name: c.name }))
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+    return City.getCitiesOfState(countryCode.value, stateCode.value)
+  }
+  return []
+})
 
 const street = ref('')
 const zipCode = ref('')
@@ -86,7 +102,7 @@ async function submitBusinessDetails() {
   savingBusiness.value = true
   try {
     const countryName = Country.getCountryByCode(countryCode.value)?.name || ''
-    const stateName = State.getStateByCodeAndCountry(stateCode.value, countryCode.value)?.name || ''
+    const stateName = State.getStateByCodeAndCountry(stateCode.value, countryCode.value)?.name || stateCode.value
 
     await saveBusinessDetails({
       storeName: storeName.value,
@@ -273,20 +289,22 @@ const getPlanColor = (index: number) => {
               </div>
               <div class="ob-form-group">
                 <label>State/Region <span class="req">*</span></label>
-                <select v-model="stateCode" :disabled="!countryCode" class="rc-select">
+                <select v-if="states.length > 0" v-model="stateCode" :disabled="!countryCode" class="rc-select">
                   <option value="" disabled>Select State/Region</option>
                   <option v-for="s in states" :key="s.isoCode" :value="s.isoCode">{{ s.name }}</option>
                 </select>
+                <input v-else v-model="stateCode" :disabled="!countryCode" placeholder="Enter State/Region" />
               </div>
             </div>
 
             <div class="ob-form-row">
               <div class="ob-form-group">
                 <label>City <span class="req">*</span></label>
-                <select v-model="cityName" :disabled="!stateCode" class="rc-select">
+                <select v-if="cities.length > 0" v-model="cityName" :disabled="!stateCode" class="rc-select">
                   <option value="" disabled>Select City</option>
                   <option v-for="ci in cities" :key="ci.name" :value="ci.name">{{ ci.name }}</option>
                 </select>
+                <input v-else v-model="cityName" :disabled="!stateCode" placeholder="Enter City" />
               </div>
               <div class="ob-form-group">
                 <label>Zip Code</label>
