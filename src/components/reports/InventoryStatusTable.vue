@@ -22,7 +22,7 @@ const filtered = computed(() => {
   if (filter.value !== 'All') list = list.filter(i => i.stockStatus === filter.value)
   if (search.value) {
     const q = search.value.toLowerCase()
-    list = list.filter(i => i.productName?.toLowerCase().includes(q) || i.sku?.toLowerCase().includes(q))
+    list = list.filter(i => i.productName?.toLowerCase().includes(q))
   }
   return list
 })
@@ -110,7 +110,6 @@ defineExpose({ reload: load })
         <thead>
           <tr>
             <th>Product</th>
-            <th>SKU</th>
             <th>Qty on Hand</th>
             <th>Reorder Point</th>
             <th>Stock Level</th>
@@ -123,7 +122,6 @@ defineExpose({ reload: load })
               <div class="cell-name">{{ item.productName }}</div>
               <div v-if="item.location" class="cell-muted">{{ item.location }}</div>
             </td>
-            <td><span class="cell-muted">{{ item.sku }}</span></td>
             <td><strong>{{ Number(item.qtyOnHand).toLocaleString() }}</strong></td>
             <td><span class="cell-muted">{{ Number(item.reorderPoint).toLocaleString() }}</span></td>
             <td style="min-width:120px;">

@@ -102,7 +102,7 @@ const filteredInv = computed(() => {
   let list = branchInv.value
   if (showLowOnly.value) list = list.filter(i => i.isLowStock)
   const q = invSearch.value.toLowerCase()
-  return q ? list.filter(i => i.productName?.toLowerCase().includes(q) || i.sku?.toLowerCase().includes(q)) : list
+  return q ? list.filter(i => i.productName?.toLowerCase().includes(q)) : list
 })
 
 async function openBranch(b: any) {
@@ -310,7 +310,6 @@ const stockLabel = (item: any) => {
           <thead>
             <tr>
               <th>Product</th>
-              <th>SKU</th>
               <th>On Hand</th>
               <th>Min Qty</th>
               <th>Status</th>
@@ -320,7 +319,6 @@ const stockLabel = (item: any) => {
           <tbody>
             <tr v-for="item in filteredInv" :key="item.inventoryId">
               <td>{{ item.productName }}</td>
-              <td class="mono">{{ item.sku }}</td>
               <td class="num">{{ item.qtyOnHand }}</td>
               <td class="num">
                 <template v-if="editingMinQty === item.inventoryId">
@@ -352,7 +350,7 @@ const stockLabel = (item: any) => {
           <label class="form-label">Product *</label>
           <select v-model="apProductId" class="form-control">
             <option :value="null" disabled>— Select product —</option>
-            <option v-for="p in products" :key="p.productId" :value="p.productId">{{ p.productName }} ({{ p.sku }})</option>
+            <option v-for="p in products" :key="p.productId" :value="p.productId">{{ p.productName }}</option>
           </select>
 
           <label class="form-label mt-2">Initial Qty</label>

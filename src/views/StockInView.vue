@@ -8,11 +8,11 @@ defineOptions({ name: 'StockInView' })
 const { toast } = useToast()
 
 interface Product {
-  productId: number
+  productId:   number
   productName: string
-  sku?: string
-  price?: number
-  quantity?: number
+  markPercent?: number
+  price?:      number
+  quantity?:   number
 }
 
 interface Supplier {
@@ -56,8 +56,7 @@ const filtered = computed(() => {
   const q = search.value.toLowerCase()
   if (!q) return products.value
   return products.value.filter(p =>
-    p.productName?.toLowerCase().includes(q) ||
-    p.sku?.toLowerCase().includes(q)
+    p.productName?.toLowerCase().includes(q)
   )
 })
 
@@ -126,7 +125,7 @@ async function submit() {
     showAdd.value = false
     await loadProducts()
   } catch (e: any) {
-    addErr.value = e?.response?.data?.message ?? 'Failed to add stock.'
+    addErr.value = e?.response?.data?.message ?? e?.response?.data?.title ?? `Failed to add stock. (${e?.response?.status ?? 'network error'})`
   } finally {
     saving.value = false
   }
@@ -160,7 +159,7 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
         <div class="flex items-center gap-3 flex-wrap">
           <div class="ps-search">
             <i class="ph ph-magnifying-glass"></i>
-            <input v-model="search" placeholder="Search by name or SKU…" />
+            <input v-model="search" placeholder="Search by name…" />
           </div>
         </div>
       </div>
@@ -177,7 +176,6 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
           <tr>
             <th>ID</th>
             <th>Product</th>
-            <th>SKU</th>
             <th>Current Stock</th>
             <th style="width: 140px"></th>
           </tr>
@@ -191,7 +189,6 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                 <span class="font-semibold text-slate-800">{{ p.productName }}</span>
               </div>
             </td>
-            <td class="text-slate-500 text-xs">{{ p.sku || '—' }}</td>
             <td>
               <span :class="['ps-tag', (p.quantity ?? 0) > 0 ? 'ps-tag-green' : 'ps-tag-red']">
                 {{ (p.quantity ?? 0).toLocaleString() }}
@@ -236,7 +233,7 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                 <select v-model="form.productId" class="ps-input">
                   <option :value="null" disabled>Select a product…</option>
                   <option v-for="p in products" :key="p.productId" :value="p.productId">
-                    {{ p.productName }}{{ p.sku ? ` — ${p.sku}` : '' }}
+                    {{ p.productName }}
                   </option>
                 </select>
                 <div v-if="selectedProduct" class="mt-1.5 text-xs text-slate-500">

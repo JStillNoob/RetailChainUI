@@ -57,6 +57,32 @@ export const addProductToBranch = (branchId: number, data: { productId: number; 
 export const setMinQty = (branchId: number, inventoryId: number, minQty: number) =>
   api.patch(`/tenant/branches/${branchId}/inventory/${inventoryId}/min-qty`, { minQty }).then(r => r.data)
 
+// ── Resource Catalog ─────────────────────────────────────────────────────────
+export const getResources = (search?: string) =>
+  api.get('/tenant/resources', { params: search ? { search } : {} }).then(r => r.data)
+
+export const getResourceUnits = () =>
+  api.get('/tenant/resources/units').then(r => r.data)
+
+// ── Units (lookup management) ─────────────────────────────────────────────────
+export const getUnits = () =>
+  api.get('/tenant/units').then(r => r.data)
+
+export const createUnit = (unitName: string) =>
+  api.post('/tenant/units', { unitName }).then(r => r.data)
+
+export const deleteUnit = (id: number) =>
+  api.delete(`/tenant/units/${id}`).then(r => r.data)
+
+export const createResource = (data: { name: string; description?: string; unitId?: number | null }) =>
+  api.post('/tenant/resources', data).then(r => r.data)
+
+export const updateResource = (id: number, data: { name: string; description?: string; unitId?: number | null }) =>
+  api.put(`/tenant/resources/${id}`, data).then(r => r.data)
+
+export const deleteResource = (id: number) =>
+  api.delete(`/tenant/resources/${id}`).then(r => r.data)
+
 // ── Suppliers ────────────────────────────────────────────────────────────────
 export const getSuppliers = () =>
   api.get('/tenant/suppliers').then(r => r.data)

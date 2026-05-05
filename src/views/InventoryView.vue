@@ -28,7 +28,6 @@ const filtered = computed(() => {
   if (!q) return items.value
   return items.value.filter(i =>
     i.productName?.toLowerCase().includes(q) ||
-    i.sku?.toLowerCase().includes(q) ||
     i.location?.toLowerCase().includes(q)
   )
 })
@@ -186,7 +185,7 @@ const okCount = computed(() => items.value.length - lowCount.value)
           <tr>
             <th style="width: 40px"><input type="checkbox" class="accent-blue-500" /></th>
             <th>Product</th>
-            <th>SKU</th>
+            <th>Markup %</th>
             <th>On Hand</th>
             <th>Reserved</th>
             <th>Reorder At</th>
@@ -200,7 +199,7 @@ const okCount = computed(() => items.value.length - lowCount.value)
           <tr v-for="item in paged" :key="item.inventoryId">
             <td><input type="checkbox" class="accent-blue-500" /></td>
             <td class="font-semibold text-slate-800">{{ item.productName }}</td>
-            <td class="text-slate-500 text-xs">{{ item.sku ?? '—' }}</td>
+            <td class="text-slate-500 text-xs">{{ item.markPercent != null ? item.markPercent + '%' : '—' }}</td>
             <td class="font-bold text-slate-800">{{ Number(item.qtyOnHand).toLocaleString() }}</td>
             <td class="text-slate-500">{{ Number(item.qtyReserved).toLocaleString() }}</td>
             <td class="text-slate-500">{{ Number(item.reorderPoint).toLocaleString() }}</td>

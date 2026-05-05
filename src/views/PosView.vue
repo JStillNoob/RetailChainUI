@@ -12,7 +12,7 @@ const { toast } = useToast()
 interface ApiProduct {
   productId:   number
   productName: string
-  sku:         string
+  markPercent: number
   unitPrice:   number
   qtyOnHand:   number
   inStock:     boolean
@@ -21,7 +21,6 @@ interface ApiProduct {
 interface CartItem {
   productId:   number
   productName: string
-  sku:         string
   unitPrice:   number
   quantity:    number
   qtyOnHand:   number
@@ -60,7 +59,6 @@ function addToCart(p: ApiProduct) {
     cart.value.push({
       productId:   p.productId,
       productName: p.productName,
-      sku:         p.sku,
       unitPrice:   Number(p.unitPrice),
       quantity:    1,
       qtyOnHand:   Number(p.qtyOnHand),
@@ -166,7 +164,7 @@ function buildReceiptText(r: Receipt): string {
   if (r.customerName) lines.push(`Customer: ${r.customerName}`)
   lines.push('-----------------------------------')
   for (const i of r.items) {
-    lines.push(`${i.productName} (${i.sku || '—'})`)
+    lines.push(`${i.productName}`)
     lines.push(`   ${i.quantity} × ${phpFmt(i.unitPrice)}  =  ${phpFmt(i.quantity * i.unitPrice)}`)
   }
   lines.push('-----------------------------------')
@@ -224,7 +222,7 @@ function downloadReceipt() {
         <div class="flex items-center gap-3 mb-4">
           <div class="pos-search">
             <i class="ph ph-magnifying-glass"></i>
-            <input v-model="prodSearch" placeholder="Search products by name or SKU…" @input="searchProducts" />
+            <input v-model="prodSearch" placeholder="Search products by name…" @input="searchProducts" />
           </div>
           <button @click="searchProducts" class="pos-icon-btn" :disabled="prodLoading" title="Refresh">
             <i :class="prodLoading ? 'ph ph-spinner animate-spin' : 'ph ph-arrows-clockwise'"></i>
@@ -246,7 +244,7 @@ function downloadReceipt() {
             :class="['pos-product-tile', !p.inStock && 'pos-product-tile--disabled']"
             :disabled="!p.inStock">
             <div class="text-base font-extrabold text-slate-900 leading-tight line-clamp-2">{{ p.productName }}</div>
-            <div class="text-xs text-slate-400 mt-0.5">{{ p.sku || '—' }}</div>
+            <div v-if="p.markPercent" class="text-xs text-slate-400 mt-0.5">+{{ p.markPercent }}% markup</div>
             <div class="flex items-end justify-between mt-3">
               <div class="text-xl font-black text-blue-600">{{ phpFmt(p.unitPrice) }}</div>
               <span :class="['ps-tag', p.inStock ? 'ps-tag-green' : 'ps-tag-red']" style="font-size: 11px;">

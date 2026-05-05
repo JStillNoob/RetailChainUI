@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useConfirm } from '../composables/useConfirm'
 import { ref, onMounted, computed } from 'vue'
-import { getProducts, createProduct, deleteProduct, getProductAttrTemplates, saveProductAttrValues } from '../services/tenant.ts'
+import { getProducts, createProduct, deleteProduct, getProductAttrTemplates, saveProductAttrValues, getResources } from '../services/tenant.ts'
 import { useAuthStore } from '../stores/auth.ts'
 
 defineOptions({ name: 'ProductsView' })
@@ -20,18 +20,30 @@ async function loadProducts() {
   catch { products.value = [] }
   finally { loading.value = false }
 }
+
+interface Resource { resourceId: number; name: string; description: string | null }
+const resources        = ref<Resource[]>([])
+const resourceSearch   = ref('')
+
+async function loadResources() {
+  try { resources.value = await getResources() }
+  catch { resources.value = [] }
+}
+
+const filteredResources = computed(() => {
+  const q = resourceSearch.value.toLowerCase()
+  if (!q) return resources.value
+  return resources.value.filter(r => r.name.toLowerCase().includes(q))
+})
+
 onMounted(async () => {
-  await loadProducts()
-  await loadTemplates()
+  await Promise.all([loadProducts(), loadTemplates(), loadResources()])
 })
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase()
   if (!q) return products.value
-  return products.value.filter(p =>
-    p.productName?.toLowerCase().includes(q) ||
-    p.sku?.toLowerCase().includes(q)
-  )
+  return products.value.filter(p => p.productName?.toLowerCase().includes(q))
 })
 
 const page     = ref(1)
@@ -61,11 +73,11 @@ async function loadTemplates() {
 
 const showAdd  = ref(false)
 const saving   = ref(false)
+const formErr  = ref('')
 const prodForm = ref({
-  productName: '',
-  sku:         '',
+  resourceId:  0,
   price:       '',
-  description: '',
+  markPercent: '',
 })
 
 function openAdd() {
@@ -73,18 +85,22 @@ function openAdd() {
     alert('Free Trial Limit: You can only add up to 10 products. Please upgrade your plan.')
     return
   }
-  prodForm.value = { productName: '', sku: '', price: '', description: '' }
+  prodForm.value = { resourceId: 0, price: '', markPercent: '' }
   attrValues.value = {}
+  resourceSearch.value = ''
+  formErr.value = ''
   showAdd.value = true
 }
 
 async function submitProduct() {
-  if (!prodForm.value.productName.trim()) return
+  formErr.value = ''
+  if (!prodForm.value.resourceId) { formErr.value = 'Please select a resource.'; return }
   saving.value = true
   try {
     const created = await createProduct({
-      ...prodForm.value,
-      price: Number(prodForm.value.price) || 0,
+      resourceId:  prodForm.value.resourceId,
+      price:       Number(prodForm.value.price) || 0,
+      markPercent: Number(prodForm.value.markPercent) || 0,
     })
 
     const productId = created.productId ?? created.id
@@ -100,7 +116,7 @@ async function submitProduct() {
     showAdd.value = false
     await loadProducts()
   } catch (err: any) {
-    alert('Failed to add product: ' + (err?.response?.data?.message || err.message))
+    formErr.value = 'Failed to add product: ' + (err?.response?.data?.message || err.message)
   } finally {
     saving.value = false
   }
@@ -162,7 +178,7 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
         <div class="flex items-center gap-3 flex-wrap">
           <div class="ps-search">
             <i class="ph ph-magnifying-glass"></i>
-            <input v-model="search" placeholder="Search by name or SKU…" />
+            <input v-model="search" placeholder="Search by name…" />
           </div>
           <button class="ps-btn ps-btn-primary"><i class="ph ph-funnel"></i> Filter</button>
           <button class="ps-btn ps-btn-dark"><i class="ph ph-download-simple"></i> Export</button>
@@ -185,7 +201,7 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
             <th style="width: 40px"><input type="checkbox" class="accent-blue-500" /></th>
             <th>ID</th>
             <th>Product</th>
-            <th>SKU</th>
+            <th>Markup %</th>
             <th>Price</th>
             <th>Stock</th>
             <th>Description</th>
@@ -202,7 +218,7 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                 <span class="font-semibold text-slate-800">{{ p.productName }}</span>
               </div>
             </td>
-            <td class="text-slate-500 text-xs">{{ p.sku || '—' }}</td>
+            <td class="text-slate-500 text-xs">{{ p.markPercent != null ? p.markPercent + '%' : '—' }}</td>
             <td class="font-bold text-slate-800">{{ formatPrice(p.price) }}</td>
             <td>
               <span :class="['ps-tag', (p.quantity ?? 0) > 0 ? 'ps-tag-green' : 'ps-tag-red']">
@@ -248,21 +264,26 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
               <div>
                 <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Basic Information</div>
                 <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <label class="ps-label">Product Name <span class="text-red-500">*</span></label>
-                    <input v-model="prodForm.productName" placeholder="e.g. Samsung Galaxy S24" class="ps-input" />
-                  </div>
-                  <div>
-                    <label class="ps-label">SKU / Barcode</label>
-                    <input v-model="prodForm.sku" placeholder="e.g. SAM-S24-128" class="ps-input" />
+                  <div class="col-span-2">
+                    <label class="ps-label">Resource <span class="text-red-500">*</span></label>
+                    <input v-model="resourceSearch" placeholder="Search resources…" class="ps-input mb-1.5" />
+                    <select v-model="prodForm.resourceId" class="ps-input">
+                      <option :value="0" disabled>— select a resource —</option>
+                      <option v-for="r in filteredResources" :key="r.resourceId" :value="r.resourceId">
+                        {{ r.name }}{{ r.description ? ` — ${r.description}` : '' }}
+                      </option>
+                    </select>
+                    <p v-if="resources.length === 0" class="text-xs text-amber-600 mt-1">
+                      No resources found. <a href="/dashboard/resources" class="underline">Add resources first</a>.
+                    </p>
                   </div>
                   <div>
                     <label class="ps-label">Unit Price (₱)</label>
                     <input v-model="prodForm.price" type="number" min="0" step="0.01" placeholder="0.00" class="ps-input" />
                   </div>
                   <div>
-                    <label class="ps-label">Description</label>
-                    <input v-model="prodForm.description" placeholder="Optional short description" class="ps-input" />
+                    <label class="ps-label">Markup %</label>
+                    <input v-model="prodForm.markPercent" type="number" min="0" step="0.01" placeholder="0.00" class="ps-input" />
                   </div>
                 </div>
               </div>
@@ -300,10 +321,13 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                   </div>
                 </div>
               </template>
+              <div v-if="formErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                {{ formErr }}
+              </div>
             </div>
             <div class="ps-modal-footer">
               <button class="ps-btn ps-btn-outline" @click="showAdd = false">Cancel</button>
-              <button class="ps-btn ps-btn-primary" :disabled="saving || !prodForm.productName.trim()" @click="submitProduct">
+              <button class="ps-btn ps-btn-primary" :disabled="saving || !prodForm.resourceId" @click="submitProduct">
                 <i :class="saving ? 'ph ph-spinner animate-spin' : 'ph ph-plus'"></i>
                 {{ saving ? 'Saving…' : 'Add Product' }}
               </button>

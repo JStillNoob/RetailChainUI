@@ -40,7 +40,8 @@ const StockInView          = () => import('../views/StockInView.vue')
 const LogisticsView        = () => import('../views/LogisticsView.vue')
 const PosView              = () => import('../views/PosView.vue')
 const SalesHistoryView     = () => import('../views/SalesHistoryView.vue')
-const BranchesView         = () => import('../views/BranchesView.vue')
+const BranchesView           = () => import('../views/BranchesView.vue')
+const ResourceCatalogView    = () => import('../views/ResourceCatalogView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -113,6 +114,7 @@ const router = createRouter({
         { path: 'store',          name: 'store',          component: StoreView,              meta: { title: 'My Store — RetailChain' } },
         { path: 'users',          name: 'users',          component: UsersView,              meta: { title: 'Users — RetailChain' } },
         { path: 'roles',          name: 'roles',          component: RolesView,              meta: { title: 'Roles — RetailChain' } },
+        { path: 'resources',      name: 'resources',      component: ResourceCatalogView,    meta: { title: 'Resource Catalog — RetailChain' } },
         { path: 'products',       name: 'products',       component: ProductsView,           meta: { title: 'Products — RetailChain' } },
         { path: 'suppliers',      name: 'suppliers',      component: SuppliersView,          meta: { title: 'Suppliers — RetailChain' } },
         { path: 'branches',       name: 'branches',       component: BranchesView,           meta: { title: 'Branch Management — RetailChain' } },

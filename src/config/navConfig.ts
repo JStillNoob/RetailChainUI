@@ -37,10 +37,11 @@ export const navConfig: Record<string, NavGroup[]> = {
         { icon: 'ph-users',           label: 'Users',       to: '/dashboard/users',        id: 'nav-users' },
         { icon: 'ph-shield-check',    label: 'Roles',       to: '/dashboard/roles',        id: 'nav-roles' },
         {
-          icon: 'ph-package',         label: 'Products',    id: 'nav-products',
+          icon: 'ph-package',         label: 'Inventory',   id: 'nav-inventory-group',
           children: [
-            { icon: 'ph-list-bullets',     label: 'Catalog',    to: '/dashboard/products',  id: 'nav-products-catalog' },
-            { icon: 'ph-arrow-circle-down', label: 'Stock In',  to: '/dashboard/stock-in', id: 'nav-products-stockin' },
+            { icon: 'ph-book-open',        label: 'Catalog',   to: '/dashboard/resources', id: 'nav-resources' },
+            { icon: 'ph-list-bullets',     label: 'Product',   to: '/dashboard/products',  id: 'nav-products-catalog' },
+            { icon: 'ph-arrow-circle-down', label: 'Stock In', to: '/dashboard/stock-in',  id: 'nav-products-stockin' },
             { icon: 'ph-cash-register',    label: 'Cashier',   to: '/dashboard/pos',       id: 'nav-products-cashier' },
           ],
         },
