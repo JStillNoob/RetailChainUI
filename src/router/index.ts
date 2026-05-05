@@ -37,6 +37,7 @@ const ProcurementView      = () => import('../views/ProcurementView.vue')
 const InventoryView        = () => import('../views/InventoryView.vue')
 const ReceivingView        = () => import('../views/ReceivingView.vue')
 const StockInView          = () => import('../views/StockInView.vue')
+const StockTransferView    = () => import('../views/StockTransferView.vue')
 const LogisticsView        = () => import('../views/LogisticsView.vue')
 const PosView              = () => import('../views/PosView.vue')
 const SalesHistoryView     = () => import('../views/SalesHistoryView.vue')
@@ -130,6 +131,7 @@ const router = createRouter({
         { path: 'inventory',      name: 'inventory',      component: InventoryView,          meta: { title: 'Inventory — RetailChain' } },
         { path: 'receiving',      name: 'receiving',      component: ReceivingView,          meta: { title: 'Receiving — RetailChain' } },
         { path: 'stock-in',       name: 'stock-in',       component: StockInView,            meta: { title: 'Stock In — RetailChain' } },
+        { path: 'transfer',       name: 'transfer',       component: StockTransferView,      meta: { title: 'Stock Transfer — RetailChain' } },
         { path: 'forecast',       name: 'forecast',       component: ForecastView,           meta: { title: 'Demand Forecast — RetailChain' } },
 
         // ── LogisticsStaff ───────────────────────────────────────────────

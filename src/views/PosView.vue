@@ -2,12 +2,38 @@
 import { useConfirm } from '../composables/useConfirm'
 import { ref, computed, onMounted, nextTick } from 'vue'
 import api from '../services/api.ts'
+import { getBranches } from '../services/tenant.ts'
 import { useToast } from '../composables/useToast.ts'
 
 defineOptions({ name: 'PosView' })
 
 const { confirmDialog } = useConfirm()
 const { toast } = useToast()
+
+// ── Branch selection ─────────────────────────────────────────────────────────
+interface Branch { branchId: number; branchName: string; address?: string }
+
+const branches        = ref<Branch[]>([])
+const selectedBranch  = ref<Branch | null>(null)
+const branchLoading   = ref(true)
+
+onMounted(async () => {
+  try { branches.value = await getBranches() }
+  catch { toast('Failed to load branches.', 'error') }
+  finally { branchLoading.value = false }
+})
+
+function selectBranch(b: Branch) {
+  selectedBranch.value = b
+  searchProducts()
+}
+
+function changeBranch() {
+  selectedBranch.value = null
+  products.value = []
+  cart.value = []
+  customerName.value = ''
+}
 
 interface ApiProduct {
   productId:   number
@@ -32,18 +58,18 @@ const prodLoading   = ref(false)
 const searchTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
 
 async function searchProducts() {
+  if (!selectedBranch.value) return
   if (searchTimeout.value) clearTimeout(searchTimeout.value)
   searchTimeout.value = setTimeout(async () => {
     prodLoading.value = true
     try {
-      const params: Record<string, string> = {}
+      const params: Record<string, string | number> = { branchId: selectedBranch.value!.branchId }
       if (prodSearch.value) params.search = prodSearch.value
       products.value = await api.get('/cashier/products', { params }).then(r => r.data)
     } catch { toast('Failed to load products.', 'error') }
     finally { prodLoading.value = false }
   }, 300)
 }
-onMounted(searchProducts)
 
 // ── Cart ────────────────────────────────────────────────────────────────────
 const cart         = ref<CartItem[]>([])
@@ -129,6 +155,7 @@ async function processPayment() {
   processing.value = true
   try {
     const res = await api.post('/cashier/sales', {
+      branchId: selectedBranch.value?.branchId ?? null,
       methodId: null,
       amountTendered: tenderedAmt,
       items: cart.value.map(c => ({ productId: c.productId, quantity: c.quantity, unitPrice: c.unitPrice })),
@@ -207,15 +234,52 @@ function downloadReceipt() {
         <i class="ph ph-cash-register text-2xl text-blue-300"></i>
         <div>
           <div class="text-lg font-black text-white tracking-wide">Cashiering</div>
-          <div class="text-xs text-slate-400">Sell products and complete transactions</div>
+          <div class="text-xs text-slate-400">
+            {{ selectedBranch ? selectedBranch.branchName : 'Select a branch to begin' }}
+          </div>
         </div>
       </div>
-      <div class="text-xs text-slate-400">
-        {{ cartCount }} item{{ cartCount === 1 ? '' : 's' }} in cart
+      <div class="flex items-center gap-3">
+        <button v-if="selectedBranch" @click="changeBranch"
+          class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors">
+          <i class="ph ph-arrows-left-right"></i> Change Branch
+        </button>
+        <div class="text-xs text-slate-400">
+          {{ cartCount }} item{{ cartCount === 1 ? '' : 's' }} in cart
+        </div>
       </div>
     </div>
 
-    <div class="pos-grid">
+    <!-- Branch selection screen -->
+    <div v-if="!selectedBranch" class="flex flex-col items-center justify-center flex-1 gap-6">
+      <div class="text-center">
+        <i class="ph ph-storefront text-6xl text-slate-500 mb-3"></i>
+        <h2 class="text-xl font-black text-white">Select a Branch</h2>
+        <p class="text-sm text-slate-400 mt-1">Choose which branch you are selling from.</p>
+      </div>
+      <div v-if="branchLoading" class="text-slate-400 text-sm flex items-center gap-2">
+        <i class="ph ph-spinner animate-spin"></i> Loading branches…
+      </div>
+      <div v-else-if="branches.length === 0" class="text-slate-400 text-sm text-center">
+        <p>No branches found.</p>
+        <p class="text-xs mt-1 text-slate-500">Create a branch in the Branches page first.</p>
+      </div>
+      <div v-else class="grid grid-cols-1 gap-3 w-full max-w-md">
+        <button
+          v-for="b in branches" :key="b.branchId"
+          @click="selectBranch(b)"
+          class="pos-branch-tile">
+          <i class="ph ph-storefront text-2xl text-blue-400"></i>
+          <div class="text-left">
+            <div class="font-black text-white">{{ b.branchName }}</div>
+            <div v-if="b.address" class="text-xs text-slate-400">{{ b.address }}</div>
+          </div>
+          <i class="ph ph-caret-right text-slate-500 ml-auto"></i>
+        </button>
+      </div>
+    </div>
+
+    <div v-else class="pos-grid">
 
       <!-- ── Left: product search grid ── -->
       <div class="pos-panel">
@@ -686,6 +750,26 @@ function downloadReceipt() {
   font-size: 14px;
 }
 .col-span-3 { grid-column: span 3; }
+
+.pos-branch-tile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #1e293b;
+  border: 2px solid #334155;
+  border-radius: 16px;
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  width: 100%;
+}
+.pos-branch-tile:hover {
+  border-color: #3b82f6;
+  background: #1e3a5f;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59,130,246,0.2);
+}
 </style>
 
 <style>

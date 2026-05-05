@@ -1,52 +1,47 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { getProducts, getSuppliers, stockIn } from '../services/tenant.ts'
+import { ref, computed, onMounted } from 'vue'
+import { getProducts, getBranches, transferStock } from '../services/tenant.ts'
 import { useToast } from '../composables/useToast.ts'
 
-defineOptions({ name: 'StockInView' })
+defineOptions({ name: 'StockTransferView' })
 
 const { toast } = useToast()
 
 interface Product {
   productId:   number
   productName: string
-  markPercent?: number
-  price?:      number
   quantity?:   number
 }
 
-interface Supplier {
-  supplierId: number
-  name: string
+interface Branch {
+  branchId:   number
+  branchName: string
 }
 
-const products  = ref<Product[]>([])
-const suppliers = ref<Supplier[]>([])
-const loading   = ref(true)
-const search    = ref('')
+const products = ref<Product[]>([])
+const branches = ref<Branch[]>([])
+const loading  = ref(true)
+const search   = ref('')
 
-async function loadProducts() {
+async function load() {
   loading.value = true
-  try { products.value = await getProducts() }
-  catch { products.value = []; toast('Failed to load products.', 'error') }
-  finally { loading.value = false }
+  try {
+    const [p, b] = await Promise.all([getProducts(), getBranches()])
+    products.value = p
+    branches.value = b
+  } catch {
+    toast('Failed to load data.', 'error')
+  } finally {
+    loading.value = false
+  }
 }
 
-async function loadSuppliers() {
-  try { suppliers.value = await getSuppliers() }
-  catch { suppliers.value = [] }
-}
-
-onMounted(async () => {
-  await Promise.all([loadProducts(), loadSuppliers()])
-})
+onMounted(load)
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase()
   if (!q) return products.value
-  return products.value.filter(p =>
-    p.productName?.toLowerCase().includes(q)
-  )
+  return products.value.filter(p => p.productName?.toLowerCase().includes(q))
 })
 
 const page     = ref(1)
@@ -55,68 +50,58 @@ const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / 
 const paged = computed(() => filtered.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
 function goTo(p: number) { if (p >= 1 && p <= totalPages.value) page.value = p }
 
-const showAdd  = ref(false)
-const saving   = ref(false)
-const addErr   = ref('')
-const today    = () => new Date().toISOString().slice(0, 10)
-const form     = ref({
+const showModal  = ref(false)
+const saving     = ref(false)
+const formErr    = ref('')
+const form = ref({
   productId:  null as number | null,
+  toBranchId: null as number | null,
   quantity:   '',
-  costPrice:  '',
-  date:       today(),
-  supplierId: null as number | null,
-  notes:      '',
+  note:       '',
 })
 
-function openAdd(product?: Product) {
+function openTransfer(product?: Product) {
   form.value = {
     productId:  product?.productId ?? null,
+    toBranchId: null,
     quantity:   '',
-    costPrice:  '',
-    date:       today(),
-    supplierId: null,
-    notes:      '',
+    note:       '',
   }
-  addErr.value = ''
-  showAdd.value = true
+  formErr.value = ''
+  showModal.value = true
 }
 
 const selectedProduct = computed(() =>
   products.value.find(p => p.productId === form.value.productId) ?? null
 )
 
-function buildNote() {
-  const parts: string[] = []
-  if (form.value.date) parts.push(`Date: ${form.value.date}`)
-  if (form.value.supplierId) {
-    const s = suppliers.value.find(x => x.supplierId === form.value.supplierId)
-    if (s) parts.push(`Supplier: ${s.name}`)
-  }
-  if (form.value.notes.trim()) parts.push(`Notes: ${form.value.notes.trim()}`)
-  return parts.join('; ') || undefined
-}
-
 async function submit() {
-  addErr.value = ''
-  if (!form.value.productId)              { addErr.value = 'Please choose a product.';   return }
+  formErr.value = ''
+  if (!form.value.productId)              { formErr.value = 'Please select a product.'; return }
+  if (!form.value.toBranchId)             { formErr.value = 'Please select a destination branch.'; return }
   const qty = Number(form.value.quantity)
-  if (!Number.isFinite(qty) || qty <= 0)  { addErr.value = 'Quantity must be greater than zero.'; return }
+  if (!Number.isFinite(qty) || qty <= 0)  { formErr.value = 'Quantity must be greater than zero.'; return }
 
-  const cost = Number(form.value.costPrice)
+  const warehouseQty = selectedProduct.value?.quantity ?? 0
+  if (qty > warehouseQty) {
+    formErr.value = `Only ${warehouseQty.toLocaleString()} units available in warehouse.`
+    return
+  }
+
   saving.value = true
   try {
-    await stockIn({
-      productId: form.value.productId,
-      quantity: qty,
-      costPrice: Number.isFinite(cost) && cost >= 0 ? cost : 0,
-      note: buildNote(),
+    await transferStock({
+      productId:  form.value.productId,
+      quantity:   qty,
+      toBranchId: form.value.toBranchId,
+      note:       form.value.note.trim() || undefined,
     })
-    toast('Stock added.')
-    showAdd.value = false
-    await loadProducts()
+    toast('Stock transferred successfully.')
+    showModal.value = false
+    await load()
   } catch (e: any) {
     const d = e?.response?.data
-    addErr.value = d?.message ?? d?.title ?? `Failed to add stock. (${e?.response?.status ?? 'network error'})${d?.detail ? ': ' + d.detail : ''}`
+    formErr.value = d?.message ?? `Transfer failed. (${e?.response?.status ?? 'network error'})`
   } finally {
     saving.value = false
   }
@@ -131,12 +116,9 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
     <!-- Page header -->
     <div class="ps-page-header">
       <div>
-        <h1 class="ps-page-title">Stock In</h1>
-        <p class="ps-page-sub">Receive stock into the central warehouse. Use Stock Transfer to send items to specific branches.</p>
+        <h1 class="ps-page-title">Stock Transfer</h1>
+        <p class="ps-page-sub">Move stock from the central warehouse to a specific branch.</p>
       </div>
-      <button @click="openAdd()" class="ps-btn ps-btn-primary">
-        <i class="ph ph-plus"></i> Add Stock
-      </button>
     </div>
 
     <!-- Datatable card -->
@@ -144,13 +126,13 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
 
       <div class="ps-table-toolbar">
         <div>
-          <div class="ps-table-title">Products</div>
+          <div class="ps-table-title">Warehouse Stock</div>
           <div class="ps-table-subtitle">{{ filtered.length }} product{{ filtered.length !== 1 ? 's' : '' }}</div>
         </div>
         <div class="flex items-center gap-3 flex-wrap">
           <div class="ps-search">
             <i class="ph ph-magnifying-glass"></i>
-            <input v-model="search" placeholder="Search by name…" />
+            <input v-model="search" placeholder="Search by name…" @input="page = 1" />
           </div>
         </div>
       </div>
@@ -159,16 +141,16 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
         <div v-for="i in 5" :key="i" class="h-12 bg-slate-100 rounded-xl animate-pulse"></div>
       </div>
       <div v-else-if="filtered.length === 0" class="flex flex-col items-center gap-3 py-16 text-slate-400">
-        <i class="ph-fill ph-package text-5xl text-slate-200"></i>
-        <p class="text-sm">{{ search ? 'No results found.' : 'No products yet — add some in the Catalog first.' }}</p>
+        <i class="ph-fill ph-arrows-left-right text-5xl text-slate-200"></i>
+        <p class="text-sm">{{ search ? 'No results found.' : 'No products yet.' }}</p>
       </div>
       <table v-else class="ps-table">
         <thead>
           <tr>
             <th>ID</th>
             <th>Product</th>
-            <th>Current Stock</th>
-            <th style="width: 140px"></th>
+            <th>Warehouse Stock</th>
+            <th style="width: 160px"></th>
           </tr>
         </thead>
         <tbody>
@@ -186,8 +168,14 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
               </span>
             </td>
             <td>
-              <button @click="openAdd(p)" class="ps-btn ps-btn-primary" style="padding: 6px 14px; font-size: 12px;">
-                <i class="ph ph-plus"></i> Add Stock
+              <button
+                @click="openTransfer(p)"
+                :disabled="(p.quantity ?? 0) <= 0"
+                class="ps-btn ps-btn-primary"
+                style="padding: 6px 14px; font-size: 12px;"
+                :title="(p.quantity ?? 0) <= 0 ? 'No warehouse stock to transfer' : ''"
+              >
+                <i class="ph ph-arrows-left-right"></i> Transfer
               </button>
             </td>
           </tr>
@@ -207,18 +195,19 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
       </div>
     </div>
 
-    <!-- Add Stock Modal -->
+    <!-- Transfer Modal -->
     <Teleport to="body">
       <Transition name="ps-modal">
-        <div v-if="showAdd" class="ps-modal-backdrop" @click.self="showAdd = false">
-          <div class="ps-modal-card" style="max-width: 520px">
+        <div v-if="showModal" class="ps-modal-backdrop" @click.self="showModal = false">
+          <div class="ps-modal-card" style="max-width: 480px">
             <div class="ps-modal-header">
-              <h3 class="ps-modal-title">Add Stock</h3>
-              <button class="ps-modal-close" @click="showAdd = false" aria-label="Close">
+              <h3 class="ps-modal-title">Transfer Stock</h3>
+              <button class="ps-modal-close" @click="showModal = false" aria-label="Close">
                 <i class="ph ph-x"></i>
               </button>
             </div>
             <div class="ps-modal-body">
+
               <div>
                 <label class="ps-label">Product <span class="text-red-500">*</span></label>
                 <select v-model="form.productId" class="ps-input">
@@ -228,49 +217,41 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                   </option>
                 </select>
                 <div v-if="selectedProduct" class="mt-1.5 text-xs text-slate-500">
-                  Current stock:
+                  Warehouse stock:
                   <strong class="text-slate-700">{{ (selectedProduct.quantity ?? 0).toLocaleString() }}</strong>
                 </div>
               </div>
 
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="ps-label">Quantity <span class="text-red-500">*</span></label>
-                  <input v-model="form.quantity" type="number" min="1" step="1" placeholder="0" class="ps-input" />
-                </div>
-                <div>
-                  <label class="ps-label">Cost Price (₱)</label>
-                  <input v-model="form.costPrice" type="number" min="0" step="0.01" placeholder="0.00" class="ps-input" />
-                </div>
-              </div>
-
               <div>
-                <label class="ps-label">Date</label>
-                <input v-model="form.date" type="date" class="ps-input" />
-              </div>
-
-              <div>
-                <label class="ps-label">Supplier</label>
-                <select v-model="form.supplierId" class="ps-input">
-                  <option :value="null">—  None / Not specified  —</option>
-                  <option v-for="s in suppliers" :key="s.supplierId" :value="s.supplierId">{{ s.name }}</option>
+                <label class="ps-label">Destination Branch <span class="text-red-500">*</span></label>
+                <select v-model="form.toBranchId" class="ps-input">
+                  <option :value="null" disabled>Select a branch…</option>
+                  <option v-for="b in branches" :key="b.branchId" :value="b.branchId">{{ b.branchName }}</option>
                 </select>
+                <div v-if="branches.length === 0" class="mt-1 text-xs text-amber-600">
+                  No branches yet. Create a branch first.
+                </div>
               </div>
 
               <div>
-                <label class="ps-label">Notes</label>
-                <input v-model="form.notes" placeholder="Optional notes…" class="ps-input" />
+                <label class="ps-label">Quantity <span class="text-red-500">*</span></label>
+                <input v-model="form.quantity" type="number" min="1" step="1" placeholder="0" class="ps-input" />
               </div>
 
-              <div v-if="addErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                {{ addErr }}
+              <div>
+                <label class="ps-label">Note</label>
+                <input v-model="form.note" placeholder="Optional note…" class="ps-input" />
+              </div>
+
+              <div v-if="formErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                {{ formErr }}
               </div>
             </div>
             <div class="ps-modal-footer">
-              <button class="ps-btn ps-btn-outline" @click="showAdd = false">Cancel</button>
+              <button class="ps-btn ps-btn-outline" @click="showModal = false">Cancel</button>
               <button class="ps-btn ps-btn-primary" :disabled="saving" @click="submit">
-                <i :class="saving ? 'ph ph-spinner animate-spin' : 'ph ph-plus'"></i>
-                {{ saving ? 'Saving…' : 'Save Stock In' }}
+                <i :class="saving ? 'ph ph-spinner animate-spin' : 'ph ph-arrows-left-right'"></i>
+                {{ saving ? 'Transferring…' : 'Transfer' }}
               </button>
             </div>
           </div>

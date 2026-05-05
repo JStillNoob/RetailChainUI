@@ -90,7 +90,7 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
     <div class="ps-page-header">
       <div>
         <h1 class="ps-page-title">Demand Forecast</h1>
-        <p class="ps-page-sub">3-month moving average per product. Generate to refresh next month's forecast.</p>
+        <p class="ps-page-sub">Weighted Moving Average (WMA) per product — fast-moving: 3-month window, slow-moving: 6-month window. Generate to refresh next month's forecast.</p>
       </div>
       <button @click="generate" :disabled="generating" class="ps-btn ps-btn-primary">
         <i :class="generating ? 'ph ph-spinner animate-spin' : 'ph ph-lightning'"></i>
@@ -130,6 +130,7 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
             <th>Forecasted Qty</th>
             <th>Actual Qty</th>
             <th>Variance</th>
+            <th>WMA Window</th>
             <th>Generated</th>
             <th style="width: 80px"></th>
           </tr>
@@ -154,6 +155,11 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                 {{ variance(r.forecastedQty, r.actualQty)! > 0 ? '+' : '' }}{{ variance(r.forecastedQty, r.actualQty) }}
               </span>
               <span v-else class="text-slate-400">—</span>
+            </td>
+            <td>
+              <span :class="['ps-tag', r.windowMonths === 3 ? 'ps-tag-green' : 'ps-tag-blue']">
+                {{ r.windowMonths ?? 3 }}M WMA
+              </span>
             </td>
             <td class="text-slate-500 text-xs">{{ fmtDate(r.generatedAt) }}</td>
             <td>

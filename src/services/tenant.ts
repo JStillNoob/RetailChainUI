@@ -29,8 +29,14 @@ export const saveProductAttrValues = (productId: number, values: object[]) =>
 export const getInventory = (params: Record<string, unknown> = {}) =>
   api.get('/warehouse/inventory', { params }).then(r => r.data)
 
-export const stockIn = (data: { productId: number; quantity: number; note?: string; location?: string; branchId?: number }) =>
+export const stockIn = (data: { productId: number; quantity: number; costPrice?: number; note?: string; location?: string }) =>
   api.post('/warehouse/inventory/adjust', { ...data, adjustmentType: 'StockIn' }).then(r => r.data)
+
+export const transferStock = (data: { productId: number; quantity: number; toBranchId: number; note?: string }) =>
+  api.post('/warehouse/inventory/transfer', data).then(r => r.data)
+
+export const getWarehouse = () =>
+  api.get('/tenant/warehouse').then(r => r.data)
 
 // ── Branches ─────────────────────────────────────────────────────────────────
 export const getBranches = () =>
