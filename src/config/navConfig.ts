@@ -48,12 +48,14 @@ export const navConfig: Record<string, NavGroup[]> = {
         },
         { icon: 'ph-users-three',     label: 'Suppliers',   to: '/dashboard/suppliers',    id: 'nav-suppliers' },
         { icon: 'ph-git-branch',      label: 'Branches',    to: '/dashboard/branches',     id: 'nav-branches' },
+        { icon: 'ph-shopping-cart-simple', label: 'Purchasing', to: '/dashboard/purchasing', id: 'nav-purchasing' },
       ],
     },
     {
       groupLabel: 'Reports',
       items: [
         { icon: 'ph-chart-line-up',   label: 'Analytics',   to: '/dashboard/analytics',    id: 'nav-analytics' },
+        { icon: 'ph-chart-bar',       label: 'Forecast',    to: '/dashboard/forecast',     id: 'nav-forecast' },
         { icon: 'ph-clipboard-text',  label: 'Audit Log',   to: '/dashboard/audit',        id: 'nav-audit' },
         { icon: 'ph-bell',            label: 'Notifications', to: '/dashboard/notifications', id: 'nav-notif' },
       ],

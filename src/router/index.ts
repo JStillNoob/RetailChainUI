@@ -43,6 +43,7 @@ const PosView              = () => import('../views/PosView.vue')
 const SalesHistoryView     = () => import('../views/SalesHistoryView.vue')
 const BranchesView           = () => import('../views/BranchesView.vue')
 const ResourceCatalogView    = () => import('../views/ResourceCatalogView.vue')
+const PurchasingView         = () => import('../views/PurchasingView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -133,6 +134,7 @@ const router = createRouter({
         { path: 'stock-in',       name: 'stock-in',       component: StockInView,            meta: { title: 'Stock In — RetailChain' } },
         { path: 'transfer',       name: 'transfer',       component: StockTransferView,      meta: { title: 'Stock Transfer — RetailChain' } },
         { path: 'forecast',       name: 'forecast',       component: ForecastView,           meta: { title: 'Demand Forecast — RetailChain' } },
+        { path: 'purchasing',     name: 'purchasing',     component: PurchasingView,         meta: { title: 'Purchasing — RetailChain' } },
 
         // ── LogisticsStaff ───────────────────────────────────────────────
         { path: 'logistics',      name: 'logistics',      component: LogisticsView,          meta: { title: 'Deliveries — RetailChain' } },
@@ -158,18 +160,22 @@ router.beforeEach((to) => {
 
   const auth = useAuthStore()
 
+  // Logged-in users cannot visit guest-only pages (login, register, landing)
   if (to.meta.guest && auth.isLoggedIn) {
     return auth.isSuperAdmin ? { name: 'admin-dashboard' } : { name: 'dashboard' }
   }
 
+  // Unauthenticated users must log in first
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     return { name: 'login' }
   }
 
+  // Non-SuperAdmins cannot access the admin portal via URL
   if (to.meta.role === 'SuperAdmin' && !auth.isSuperAdmin) {
     return { name: 'dashboard' }
   }
 
+  // Redirect to onboarding if setup not yet complete
   if (
     auth.isLoggedIn &&
     auth.isTenantAdmin &&
@@ -178,6 +184,17 @@ router.beforeEach((to) => {
     to.path.startsWith('/dashboard')
   ) {
     return { name: 'onboarding' }
+  }
+
+  // Redirect to upgrade page if subscription has expired (client-side check)
+  if (
+    auth.isLoggedIn &&
+    !auth.isSuperAdmin &&
+    auth.isSubscriptionExpired &&
+    to.name !== 'upgrade' &&
+    to.path.startsWith('/dashboard')
+  ) {
+    return { name: 'upgrade' }
   }
 })
 
