@@ -54,9 +54,10 @@ export const navConfig: Record<string, NavGroup[]> = {
     {
       groupLabel: 'Reports',
       items: [
-        { icon: 'ph-chart-line-up',   label: 'Analytics',   to: '/dashboard/analytics',    id: 'nav-analytics' },
-        { icon: 'ph-chart-bar',       label: 'Forecast',    to: '/dashboard/forecast',     id: 'nav-forecast' },
-        { icon: 'ph-clipboard-text',  label: 'Audit Log',   to: '/dashboard/audit',        id: 'nav-audit' },
+        { icon: 'ph-chart-line-up',   label: 'Analytics',    to: '/dashboard/analytics',    id: 'nav-analytics' },
+        { icon: 'ph-chart-bar',       label: 'Forecast',     to: '/dashboard/forecast',     id: 'nav-forecast' },
+        { icon: 'ph-receipt',         label: 'Sales History', to: '/dashboard/sales',        id: 'nav-sales' },
+        { icon: 'ph-clipboard-text',  label: 'Audit Log',    to: '/dashboard/audit',        id: 'nav-audit' },
         { icon: 'ph-bell',            label: 'Notifications', to: '/dashboard/notifications', id: 'nav-notif' },
       ],
     },

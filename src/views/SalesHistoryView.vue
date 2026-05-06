@@ -2,33 +2,60 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
 import { useToast } from '../composables/useToast.ts'
+import { useAuthStore } from '../stores/auth.ts'
 
 defineOptions({ name: 'SalesHistoryView' })
 
 const { toast } = useToast()
+const auth = useAuthStore()
+
+const isAdmin    = computed(() => auth.isTenantAdmin)
 
 const sales      = ref<any[]>([])
 const total      = ref(0)
 const page       = ref(1)
-const pageSize   = ref(10)
+const pageSize   = ref(20)
 const loading    = ref(true)
 const dateFilter = ref(new Date().toISOString().slice(0, 10))
+const branchFilter = ref<number | ''>('')
+const branches   = ref<any[]>([])
+
+async function loadBranches() {
+  if (!isAdmin.value) return
+  try {
+    const res = await api.get('/tenant/branches').then(r => r.data)
+    branches.value = res
+  } catch { /* silent */ }
+}
 
 async function load() {
   loading.value = true
   try {
-    const params: Record<string, unknown> = { page: page.value, pageSize: pageSize.value }
-    if (dateFilter.value) params.date = dateFilter.value
-    const res = await api.get('/cashier/sales', { params }).then(r => r.data)
-    sales.value = res.items ?? []
-    total.value = res.total ?? 0
+    if (isAdmin.value) {
+      const params: Record<string, unknown> = { page: page.value, pageSize: pageSize.value }
+      if (dateFilter.value) params.date = dateFilter.value
+      if (branchFilter.value !== '') params.branchId = branchFilter.value
+      const res = await api.get('/cashier/sales/all', { params }).then(r => r.data)
+      sales.value = res.items ?? []
+      total.value = res.total ?? 0
+    } else {
+      const params: Record<string, unknown> = { page: page.value, pageSize: pageSize.value }
+      if (dateFilter.value) params.date = dateFilter.value
+      const res = await api.get('/cashier/sales', { params }).then(r => r.data)
+      sales.value = res.items ?? []
+      total.value = res.total ?? 0
+    }
   } catch { toast('Failed to load sales history.', 'error') }
   finally { loading.value = false }
 }
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 function goTo(p: number) { if (p >= 1 && p <= totalPages.value) { page.value = p; load() } }
-onMounted(load)
+
+onMounted(async () => {
+  await loadBranches()
+  load()
+})
 
 const showDetail = ref(false)
 const detail     = ref<any>(null)
@@ -36,7 +63,10 @@ const detLoading = ref(false)
 
 async function viewDetail(id: number) {
   showDetail.value = true; detLoading.value = true
-  try { detail.value = await api.get(`/cashier/sales/${id}`).then(r => r.data) }
+  try {
+    const endpoint = isAdmin.value ? `/cashier/sales/all/${id}` : `/cashier/sales/${id}`
+    detail.value = await api.get(endpoint).then(r => r.data)
+  }
   catch { toast('Failed to load transaction.', 'error') }
   finally { detLoading.value = false }
 }
@@ -60,7 +90,7 @@ const todayTotal = computed(() => sales.value.reduce((s, t) => s + Number(t.tota
     <div class="ps-page-header">
       <div>
         <h1 class="ps-page-title">Sales History</h1>
-        <p class="ps-page-sub">Your transaction records and revenue snapshot.</p>
+        <p class="ps-page-sub">{{ isAdmin ? 'All branch transactions and revenue overview.' : 'Your transaction records and revenue snapshot.' }}</p>
       </div>
     </div>
 
@@ -76,7 +106,7 @@ const todayTotal = computed(() => sales.value.reduce((s, t) => s + Number(t.tota
           </span>
         </div>
         <p class="text-xl font-bold text-slate-900 mt-3 leading-none">{{ total.toLocaleString() }}</p>
-        <p class="text-xs text-slate-500 mt-1.5">{{ dateFilter ? 'Transactions Today' : 'Total Transactions' }}</p>
+        <p class="text-xs text-slate-500 mt-1.5">{{ dateFilter ? 'Transactions on date' : 'Total Transactions' }}</p>
       </div>
       <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
         <div class="flex items-start justify-between gap-2">
@@ -88,7 +118,7 @@ const todayTotal = computed(() => sales.value.reduce((s, t) => s + Number(t.tota
           </span>
         </div>
         <p class="text-xl font-bold text-slate-900 mt-3 leading-none">{{ phpFmt(todayTotal) }}</p>
-        <p class="text-xs text-slate-500 mt-1.5">{{ dateFilter ? "Today's Revenue (page)" : 'Revenue (page)' }}</p>
+        <p class="text-xs text-slate-500 mt-1.5">Revenue (page)</p>
       </div>
       <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
         <div class="flex items-start justify-between gap-2">
@@ -110,12 +140,25 @@ const todayTotal = computed(() => sales.value.reduce((s, t) => s + Number(t.tota
           <div class="ps-table-subtitle">{{ total.toLocaleString() }} record{{ total !== 1 ? 's' : '' }}</div>
         </div>
         <div class="flex items-center gap-3 flex-wrap">
+          <!-- Branch filter — TenantAdmin only -->
+          <select
+            v-if="isAdmin"
+            v-model="branchFilter"
+            @change="page = 1; load()"
+            class="ps-pg-size"
+            style="padding: 9px 12px;"
+          >
+            <option value="">All Branches</option>
+            <option v-for="b in branches" :key="b.branchId" :value="b.branchId">
+              {{ b.branchName }}
+            </option>
+          </select>
+
           <input v-model="dateFilter" type="date" @change="page = 1; load()" class="ps-pg-size" style="padding: 9px 12px;" />
           <button @click="dateFilter = ''; page = 1; load()" class="ps-btn ps-btn-outline">All Dates</button>
           <button @click="load" :disabled="loading" class="ps-btn ps-btn-outline">
             <i class="ph ph-arrows-clockwise" :class="{ 'animate-spin': loading }"></i> Refresh
           </button>
-          <button class="ps-btn ps-btn-dark"><i class="ph ph-download-simple"></i> Export</button>
         </div>
       </div>
 
@@ -129,9 +172,10 @@ const todayTotal = computed(() => sales.value.reduce((s, t) => s + Number(t.tota
       <table v-else class="ps-table">
         <thead>
           <tr>
-            <th style="width: 40px"><input type="checkbox" class="accent-blue-500" /></th>
             <th>TX #</th>
             <th>Date &amp; Time</th>
+            <th v-if="isAdmin">Branch</th>
+            <th v-if="isAdmin">Cashier</th>
             <th>Items</th>
             <th>Total</th>
             <th>Tendered</th>
@@ -142,9 +186,12 @@ const todayTotal = computed(() => sales.value.reduce((s, t) => s + Number(t.tota
         </thead>
         <tbody>
           <tr v-for="t in sales" :key="t.transactionId">
-            <td><input type="checkbox" class="accent-blue-500" /></td>
             <td class="font-semibold text-slate-800">#{{ t.transactionId }}</td>
             <td class="text-slate-500">{{ fmtDateTime(t.transactionDate) }}</td>
+            <td v-if="isAdmin">
+              <span class="ps-tag ps-tag-slate">{{ t.branchName ?? 'Unassigned' }}</span>
+            </td>
+            <td v-if="isAdmin" class="text-slate-500 text-xs">{{ t.cashierName }}</td>
             <td><span class="ps-tag ps-tag-slate">{{ t.itemCount }}</span></td>
             <td class="font-bold text-slate-800">{{ phpFmt(t.totalAmount) }}</td>
             <td class="text-slate-500">{{ phpFmt(t.amountTendered) }}</td>
@@ -186,11 +233,13 @@ const todayTotal = computed(() => sales.value.reduce((s, t) => s + Number(t.tota
                 <i class="ph ph-spinner animate-spin text-xl text-blue-500"></i> Loading…
               </div>
               <template v-else-if="detail">
-                <div class="flex flex-wrap gap-4 text-sm">
+                <div class="flex flex-wrap gap-4 text-sm mb-4">
                   <span><strong class="text-slate-700">Date:</strong> <span class="text-slate-500">{{ fmtDateTime(detail.transactionDate) }}</span></span>
                   <span><strong class="text-slate-700">Payment:</strong> <span class="text-slate-500">{{ detail.paymentMethod ?? 'Cash' }}</span></span>
+                  <span v-if="detail.branchName"><strong class="text-slate-700">Branch:</strong> <span class="text-slate-500">{{ detail.branchName }}</span></span>
+                  <span v-if="detail.cashierName"><strong class="text-slate-700">Cashier:</strong> <span class="text-slate-500">{{ detail.cashierName }}</span></span>
                 </div>
-                <table class="w-full text-sm border border-slate-100 rounded-lg overflow-hidden">
+                <table class="w-full text-sm border border-slate-100 rounded-lg overflow-hidden mb-4">
                   <thead class="bg-slate-50">
                     <tr>
                       <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Product</th>
