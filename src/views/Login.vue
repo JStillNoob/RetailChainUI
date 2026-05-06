@@ -7,30 +7,37 @@ import logo from '@/assets/images/logo.png'
 
 defineOptions({ name: 'LoginPage' })
 
-const email = ref('')
+const email    = ref('')
 const password = ref('')
-const showPwd = ref(false)
-const error = ref('')
-const loading = ref(false)
-const router = useRouter()
-const auth = useAuthStore()
+const showPwd  = ref(false)
+const error    = ref('')
+const expired  = ref(false)
+const loading  = ref(false)
+const router   = useRouter()
+const auth     = useAuthStore()
 
 const handleLogin = async () => {
   if (!email.value || !password.value) {
     error.value = 'Please fill in all fields.'
     return
   }
-  error.value = ''
+  error.value  = ''
+  expired.value = false
   loading.value = true
   try {
     const data = await auth.login(email.value, password.value)
     if (data.roleTypeName === 'SuperAdmin') router.push('/admin')
     else router.push('/dashboard')
   } catch (err: unknown) {
-    const axiosErr = err as { response?: { data?: { message?: string } } }
-    error.value =
-      axiosErr?.response?.data?.message ||
-      'Login failed. Check your credentials or ensure the server is running.'
+    const axiosErr = err as { response?: { status?: number; data?: { message?: string } } }
+    if (axiosErr?.response?.status === 402) {
+      expired.value = true
+      error.value   = axiosErr.response?.data?.message ?? 'Your subscription has expired.'
+    } else {
+      error.value =
+        axiosErr?.response?.data?.message ||
+        'Login failed. Check your credentials or ensure the server is running.'
+    }
   } finally {
     loading.value = false
   }
@@ -112,14 +119,22 @@ const handleLogin = async () => {
             <p class="mt-2 text-[15px] text-slate-500">Sign in to your RetailChain account</p>
           </div>
 
-          <!-- Error -->
+          <!-- Error / Expired subscription notice -->
           <div
             v-if="error"
             role="alert"
-            class="mt-6 flex items-start gap-3 px-4 py-3 rounded-[10px] bg-red-50/80 border border-red-100 text-red-600 text-sm font-medium backdrop-blur-sm fade-up delay-100"
+            :class="['mt-6 flex flex-col gap-2 px-4 py-3 rounded-[10px] text-sm font-medium backdrop-blur-sm fade-up delay-100',
+              expired
+                ? 'bg-amber-50/80 border border-amber-200 text-amber-800'
+                : 'bg-red-50/80 border border-red-100 text-red-600']"
           >
-            <i class="ph-fill ph-warning-circle text-lg mt-0.5"></i>
-            <span>{{ error }}</span>
+            <div class="flex items-start gap-3">
+              <i :class="['text-lg mt-0.5', expired ? 'ph-fill ph-crown text-amber-500' : 'ph-fill ph-warning-circle']"></i>
+              <span>{{ error }}</span>
+            </div>
+            <a v-if="expired" href="mailto:support@retailchain.com" class="ml-7 underline font-semibold text-amber-700 hover:text-amber-900">
+              Contact support to upgrade →
+            </a>
           </div>
 
           <form @submit.prevent="handleLogin" id="login-form" class="mt-8" autocomplete="off">

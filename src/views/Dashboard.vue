@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth.ts'
+import { useConfirm } from '../composables/useConfirm.ts'
 import { navConfig, defaultNavConfig } from '../config/navConfig.ts'
 import AppSidebar from '../components/AppSidebar.vue'
 import TopbarUserDropdown from '../components/TopbarUserDropdown.vue'
@@ -12,6 +13,7 @@ defineOptions({ name: 'DashboardLayout' })
 const router = useRouter()
 const route  = useRoute()
 const auth   = useAuthStore()
+const { confirmDialog } = useConfirm()
 
 const sidebarCollapsed = ref(false)
 const mobileOpen       = ref(false)
@@ -38,8 +40,13 @@ const isActive = (to?: string) => {
   return route.path.startsWith(to)
 }
 
-
-const handleLogout = () => {
+const handleLogout = async () => {
+  const ok = await confirmDialog('Are you sure you want to sign out?', {
+    title: 'Sign Out',
+    confirmText: 'Sign Out',
+    confirmColor: 'ps-btn-danger',
+  })
+  if (!ok) return
   auth.logout()
   router.push('/login')
 }

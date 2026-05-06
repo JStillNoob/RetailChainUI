@@ -15,6 +15,7 @@ export interface LoginResponse {
   onboardingComplete?: boolean
   planName?: string
   planId?: number
+  subscriptionEndDate?: string | null
   tenantName?: string
 }
 

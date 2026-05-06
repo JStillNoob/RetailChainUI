@@ -1,11 +1,27 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth.ts'
+import { useRouter, useRoute } from 'vue-router'
 
 defineOptions({ name: 'DashboardHome' })
 
-const auth = useAuthStore()
-const role = computed(() => auth.roleTypeName)
+const auth   = useAuthStore()
+const router = useRouter()
+const route  = useRoute()
+const role   = computed(() => auth.roleTypeName)
+
+// ── Payment success congratulations ──────────────────────────────────────────
+const showCongrats = ref(false)
+const congratsPlan = ref('')
+
+onMounted(() => {
+  if (route.query.payment === 'success') {
+    congratsPlan.value = (route.query.plan as string) || 'your plan'
+    showCongrats.value = true
+    // Clean the URL without reloading
+    router.replace({ path: '/dashboard' })
+  }
+})
 
 const greeting = computed(() => {
   const h = new Date().getHours()
@@ -168,6 +184,51 @@ const cashierLinks = [
 
 <template>
   <div class="flex flex-col gap-5 max-w-[1280px] mx-auto w-full">
+
+    <!-- ── Payment Success Modal ───────────────────────────────────────────── -->
+    <Teleport to="body">
+      <Transition name="ps-modal">
+        <div v-if="showCongrats" class="ps-modal-backdrop" @click.self="showCongrats = false">
+          <div class="ps-modal-card text-center" style="max-width: 440px">
+            <!-- Confetti-style header -->
+            <div class="flex flex-col items-center gap-3 px-8 pt-10 pb-6">
+              <div class="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+                <i class="ph-fill ph-crown text-4xl text-indigo-500"></i>
+              </div>
+              <div>
+                <h2 class="text-2xl font-bold text-slate-900">Congratulations!</h2>
+                <p class="mt-2 text-slate-500 text-sm leading-relaxed">
+                  You're now on the <strong class="text-indigo-600">{{ congratsPlan }}</strong>.<br>
+                  All premium features are now unlocked and ready to use.
+                </p>
+              </div>
+
+              <div class="w-full mt-2 p-4 bg-indigo-50 rounded-xl text-left space-y-2">
+                <div class="flex items-center gap-2 text-sm text-indigo-700">
+                  <i class="ph-fill ph-check-circle text-indigo-500"></i>
+                  <span>Subscription activated successfully</span>
+                </div>
+                <div class="flex items-center gap-2 text-sm text-indigo-700">
+                  <i class="ph-fill ph-check-circle text-indigo-500"></i>
+                  <span>Demand forecasting unlocked</span>
+                </div>
+                <div class="flex items-center gap-2 text-sm text-indigo-700">
+                  <i class="ph-fill ph-check-circle text-indigo-500"></i>
+                  <span>Branch management enabled</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-primary w-full justify-center" @click="showCongrats = false">
+                <i class="ph ph-rocket-launch"></i> Get Started
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- Greeting -->
     <div class="flex items-center justify-between gap-3 flex-wrap">
       <div>

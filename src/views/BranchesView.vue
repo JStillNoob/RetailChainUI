@@ -65,8 +65,10 @@ async function saveBranch() {
     closeForm()
     await loadBranches()
     await loadOverview()
-  } catch { toast('Failed to save branch.', 'error') }
-  finally { saving.value = false }
+  } catch (e: any) {
+    const msg = e?.response?.data?.message ?? 'Failed to save branch.'
+    toast(msg, 'error')
+  } finally { saving.value = false }
 }
 
 async function removeBranch(b: any) {

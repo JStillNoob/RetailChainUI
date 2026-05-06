@@ -15,9 +15,10 @@ export const useAuthStore = defineStore('auth', () => {
   const dateOfBirth  = ref<string>('')
   const email        = ref<string>('')
   const roleTypeName = ref<string>('')
-  const planName     = ref<string>('No Plan')
-  const planId       = ref<number>(0)
-  const tenantName   = ref<string>('')
+  const planName            = ref<string>('No Plan')
+  const planId              = ref<number>(0)
+  const tenantName          = ref<string>('')
+  const subscriptionEndDate = ref<string | null>(null)
 
   // Personal profile photo (all users)
   const profilePhoto = ref<string | null>(localStorage.getItem('profilePhoto') || null)
@@ -79,6 +80,10 @@ export const useAuthStore = defineStore('auth', () => {
     const l = lastName.value?.[0]  ?? ''
     return (f + l).toUpperCase() || 'U'
   })
+  const isSubscriptionExpired = computed(() => {
+    if (!subscriptionEndDate.value || isSuperAdmin.value) return false
+    return new Date(subscriptionEndDate.value) < new Date()
+  })
 
   // ── Actions ────────────────────────────────────────────────────────────────
   async function login(emailVal: string, password: string): Promise<LoginResponse> {
@@ -93,11 +98,12 @@ export const useAuthStore = defineStore('auth', () => {
     dateOfBirth.value  = data.dateOfBirth || ''
     email.value        = data.email
     roleTypeName.value = data.roleTypeName
-    planName.value     = data.planName || 'No Plan'
-    planId.value       = data.planId || 0
-    profilePhoto.value = data.profilePhotoUrl || null
-    onboardingComplete.value = data.onboardingComplete ?? false
-    tenantName.value   = data.tenantName || ''
+    planName.value            = data.planName || 'No Plan'
+    planId.value              = data.planId || 0
+    subscriptionEndDate.value = data.subscriptionEndDate ?? null
+    profilePhoto.value        = data.profilePhotoUrl || null
+    onboardingComplete.value  = data.onboardingComplete ?? false
+    tenantName.value          = data.tenantName || ''
     if (tenantName.value) {
       companyName.value = tenantName.value
       localStorage.setItem('companyName', tenantName.value)
@@ -133,12 +139,13 @@ export const useAuthStore = defineStore('auth', () => {
       dateOfBirth.value  = data.dateOfBirth || ''
       email.value        = data.email || ''
       roleTypeName.value = data.roleTypeName || ''
-      planName.value     = data.planName || 'No Plan'
-      planId.value       = data.planId || 0
-      profilePhoto.value = data.profilePhotoUrl || null
-      onboardingComplete.value = data.onboardingComplete ?? false
-      tenantId.value     = data.tenantId
-      tenantName.value   = data.tenantName || ''
+      planName.value            = data.planName || 'No Plan'
+      planId.value              = data.planId || 0
+      subscriptionEndDate.value = data.subscriptionEndDate ?? null
+      profilePhoto.value        = data.profilePhotoUrl || null
+      onboardingComplete.value  = data.onboardingComplete ?? false
+      tenantId.value            = data.tenantId
+      tenantName.value          = data.tenantName || ''
       if (tenantName.value) {
         companyName.value = tenantName.value
         localStorage.setItem('companyName', tenantName.value)
@@ -176,9 +183,10 @@ export const useAuthStore = defineStore('auth', () => {
     dateOfBirth.value  = ''
     email.value        = ''
     roleTypeName.value = ''
-    planName.value     = 'No Plan'
-    planId.value       = 0
-    profilePhoto.value = null
+    planName.value            = 'No Plan'
+    planId.value              = 0
+    subscriptionEndDate.value = null
+    profilePhoto.value        = null
     companyLogo.value  = null
     companyName.value  = ''
     onboardingComplete.value = false
@@ -192,9 +200,9 @@ export const useAuthStore = defineStore('auth', () => {
     // State
     token, userId, tenantId, firstName, middleName, lastName, phone, dateOfBirth, email, roleTypeName,
     profilePhoto, companyLogo, companyName, systemLogo, onboardingComplete,
-    planName, planId,
+    planName, planId, subscriptionEndDate,
     // Getters
-    isLoggedIn, isSuperAdmin, isTenantAdmin, fullName, initials,
+    isLoggedIn, isSuperAdmin, isTenantAdmin, fullName, initials, isSubscriptionExpired,
     // Actions
     login, logout, markOnboardingComplete, fetchProfile,
   }
