@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
 import { useToast } from '../composables/useToast.ts'
 import { useAuthStore } from '../stores/auth.ts'
+import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'SalesHistoryView' })
 
@@ -16,7 +17,7 @@ const total      = ref(0)
 const page       = ref(1)
 const pageSize   = ref(20)
 const loading    = ref(true)
-const dateFilter = ref(new Date().toISOString().slice(0, 10))
+const dateFilter = ref('')
 const branchFilter = ref<number | ''>('')
 const branches   = ref<any[]>([])
 
@@ -48,9 +49,6 @@ async function load() {
   } catch { toast('Failed to load sales history.', 'error') }
   finally { loading.value = false }
 }
-
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
-function goTo(p: number) { if (p >= 1 && p <= totalPages.value) { page.value = p; load() } }
 
 onMounted(async () => {
   await loadBranches()
@@ -106,7 +104,7 @@ const todayTotal = computed(() => sales.value.reduce((s, t) => s + Number(t.tota
           </span>
         </div>
         <p class="text-xl font-bold text-slate-900 mt-3 leading-none">{{ total.toLocaleString() }}</p>
-        <p class="text-xs text-slate-500 mt-1.5">{{ dateFilter ? 'Transactions on date' : 'Total Transactions' }}</p>
+        <p class="text-xs text-slate-500 mt-1.5">{{ dateFilter ? `Transactions on ${dateFilter}` : 'All Transactions' }}</p>
       </div>
       <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
         <div class="flex items-start justify-between gap-2">
@@ -207,14 +205,14 @@ const todayTotal = computed(() => sales.value.reduce((s, t) => s + Number(t.tota
         </tbody>
       </table>
 
-      <div v-if="!loading && sales.length > 0" class="ps-pagination">
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(1)"><i class="ph ph-caret-double-left"></i></button>
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(page - 1)"><i class="ph ph-caret-left"></i></button>
-        <button v-for="p in totalPages" :key="p" :class="['ps-pg-btn', p === page && 'ps-pg-btn--active']" @click="goTo(p)">{{ p }}</button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(page + 1)"><i class="ph ph-caret-right"></i></button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(totalPages)"><i class="ph ph-caret-double-right"></i></button>
-        <span class="ps-pg-info">Page {{ page }} of {{ totalPages }} · {{ total.toLocaleString() }} total</span>
-      </div>
+      <PsPagination
+        v-if="!loading"
+        v-model:page="page"
+        v-model:pageSize="pageSize"
+        :total="total"
+        record-label="transactions"
+        @change="load"
+      />
     </div>
 
     <!-- Detail Modal -->

@@ -467,45 +467,105 @@ a { color: inherit; text-decoration: none; }
 .ps-pagination {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 16px 24px;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
   border-top: 1px solid #F1F5F9;
+  flex-wrap: wrap;
+  background: #FFFFFF;
+}
+.ps-pg-summary {
+  font-size: 12.5px;
+  color: #64748B;
+  white-space: nowrap;
+}
+.ps-pg-summary strong {
+  color: #0F172A;
+  font-weight: 600;
+}
+.ps-pg-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   flex-wrap: wrap;
 }
 .ps-pg-btn {
-  width: 32px;
+  min-width: 32px;
   height: 32px;
+  padding: 0 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
-  color: #94A3B8;
+  color: #64748B;
   cursor: pointer;
-  border-radius: 9999px;
-  font-size: 14px;
-  transition: background 0.12s, color 0.12s;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.ps-pg-btn:hover:not(:disabled) { background: #F1F5F9; color: #0F172A; }
-.ps-pg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ps-pg-btn:hover:not(:disabled) {
+  background: #F1F5F9;
+  color: #0F172A;
+}
+.ps-pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .ps-pg-btn--active {
-  background: #DBEAFE;
-  color: #1D4ED8;
-  font-weight: 700;
+  background: #3B82F6;
+  color: #FFFFFF;
+  font-weight: 600;
+  border-color: #3B82F6;
+  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.25);
+}
+.ps-pg-btn--active:hover:not(:disabled) {
+  background: #2563EB;
+  color: #FFFFFF;
+}
+.ps-pg-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 32px;
+  color: #94A3B8;
+  font-size: 13px;
+  user-select: none;
 }
 .ps-pg-info {
   font-size: 13px;
   color: #94A3B8;
 }
+.ps-pg-size-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ps-pg-size-label {
+  font-size: 12.5px;
+  color: #64748B;
+  font-weight: 500;
+}
 .ps-pg-size {
-  padding: 6px 10px;
+  padding: 6px 28px 6px 10px;
   border: 1px solid #E2E8F0;
   border-radius: 8px;
   font-size: 13px;
-  color: #475569;
+  color: #0F172A;
   background: #FFFFFF;
   outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ps-pg-size:focus {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.10);
+}
+
+@media (max-width: 640px) {
+  .ps-pagination {
+    justify-content: center;
+  }
+  .ps-pg-summary { width: 100%; text-align: center; }
 }
 
 /* KPI tile (used in section cards holding multiple KPIs) */

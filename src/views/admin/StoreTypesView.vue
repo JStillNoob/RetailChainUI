@@ -5,6 +5,7 @@ import {
   getStoreTypeTemplates, createTemplate, deleteTemplate,
 } from '../../services/superadmin.ts'
 import { useConfirm } from '../../composables/useConfirm'
+import PsPagination from '../../components/PsPagination.vue'
 
 defineOptions({ name: 'StoreTypesView' })
 
@@ -102,9 +103,7 @@ const fieldTypeIcon = (v: string) => v === 'date' ? 'ph ph-calendar' : v === 'nu
 // Pagination
 const page       = ref(1)
 const pageSize   = ref(10)
-const totalPages = computed(() => Math.max(1, Math.ceil(types.value.length / pageSize.value)))
 const paged      = computed(() => types.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
-function goTo(p: number) { if (p >= 1 && p <= totalPages.value) page.value = p }
 </script>
 
 <template>
@@ -172,20 +171,13 @@ function goTo(p: number) { if (p >= 1 && p <= totalPages.value) page.value = p }
         </tbody>
       </table>
 
-      <!-- Pagination -->
-      <div v-if="!loading && types.length > 0" class="ps-pagination">
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(1)"><i class="ph ph-caret-double-left"></i></button>
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(page - 1)"><i class="ph ph-caret-left"></i></button>
-        <button v-for="p in totalPages" :key="p" :class="['ps-pg-btn', p === page && 'ps-pg-btn--active']" @click="goTo(p)">{{ p }}</button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(page + 1)"><i class="ph ph-caret-right"></i></button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(totalPages)"><i class="ph ph-caret-double-right"></i></button>
-        <span class="ps-pg-info">Showing {{ (page - 1) * pageSize + 1 }}–{{ Math.min(page * pageSize, types.length) }} of {{ types.length }} types</span>
-        <select v-model="pageSize" class="ps-pg-size" @change="page = 1">
-          <option :value="10">10</option>
-          <option :value="25">25</option>
-          <option :value="50">50</option>
-        </select>
-      </div>
+      <PsPagination
+        v-if="!loading"
+        v-model:page="page"
+        v-model:pageSize="pageSize"
+        :total="types.length"
+        record-label="types"
+      />
     </div>
 
     <!-- Create modal -->

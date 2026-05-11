@@ -4,6 +4,7 @@ import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
 import { getBranches } from '../services/tenant.ts'
 import { useToast } from '../composables/useToast.ts'
+import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'ProcurementView' })
 
@@ -52,8 +53,6 @@ async function loadMeta() {
 
 onMounted(async () => {
   await loadMeta()
-  const pending = statuses.value.find((s: any) => s.statusName === 'Pending')
-  if (pending) poForm.value.statusId = pending.statusId
   await load()
 })
 
@@ -68,32 +67,21 @@ const filtered = computed(() => {
 
 const page     = ref(1)
 const pageSize = ref(10)
-const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize.value)))
 const paged = computed(() => filtered.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
-function goTo(p: number) { if (p >= 1 && p <= totalPages.value) page.value = p }
 
+// ── Create PO ──────────────────────────────────────────────────────────────────
 const showCreate = ref(false)
 const creating   = ref(false)
 const createErr  = ref('')
 
-const poForm = ref({
-  supplierId: null as number | null,
-  statusId:   null as number | null,
-  orderDate:  new Date().toISOString().slice(0, 10),
-  expectedDate: '',
-  branchId:   null as number | null,
-})
-
+const poForm = ref({ supplierId: null as number | null, orderDate: new Date().toISOString().slice(0, 10), expectedDate: '', branchId: null as number | null, notes: '' })
 interface PoItem { productId: number | null; quantity: string; unitCost: string }
 const items = ref<PoItem[]>([{ productId: null, quantity: '', unitCost: '' }])
 
 function addItem() { items.value.push({ productId: null, quantity: '', unitCost: '' }) }
 function removeItem(i: number) { if (items.value.length > 1) items.value.splice(i, 1) }
-
 const lineTotal = (item: PoItem) => (parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0)
 const grandTotal = computed(() => items.value.reduce((s, i) => s + lineTotal(i), 0))
-const phpFmt = (v: number) =>
-  new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 2 }).format(v)
 
 async function createPo() {
   createErr.value = ''
@@ -104,15 +92,15 @@ async function createPo() {
   try {
     await api.post('/procurement/purchase-orders', {
       supplierId:   poForm.value.supplierId,
-      statusId:     poForm.value.statusId,
       orderDate:    poForm.value.orderDate,
       expectedDate: poForm.value.expectedDate || null,
       branchId:     poForm.value.branchId || null,
+      notes:        poForm.value.notes || null,
       items: validItems.map(i => ({ productId: i.productId, quantity: parseFloat(i.quantity), unitCost: parseFloat(i.unitCost) })),
     })
-    toast('Purchase order created.'); showCreate.value = false
-    const pending = statuses.value.find((s: any) => s.statusName === 'Pending')
-    poForm.value = { supplierId: null, statusId: pending?.statusId ?? null, orderDate: new Date().toISOString().slice(0, 10), expectedDate: '', branchId: null }
+    toast('Purchase order created.')
+    showCreate.value = false
+    poForm.value = { supplierId: null, orderDate: new Date().toISOString().slice(0, 10), expectedDate: '', branchId: null, notes: '' }
     items.value = [{ productId: null, quantity: '', unitCost: '' }]
     await load()
   } catch (e: any) {
@@ -120,12 +108,89 @@ async function createPo() {
   } finally { creating.value = false }
 }
 
-async function cancelPo(po: any) {
-  if (!await confirmDialog(`Cancel PO #${po.poId} from ${po.supplierName}? This cannot be undone.`)) return
-  try { await api.delete(`/procurement/purchase-orders/${po.poId}`); toast('Purchase order cancelled.'); await load() }
-  catch (e: any) { toast(e.response?.data?.message ?? 'Failed to cancel PO.', 'error') }
+// ── Edit PO ────────────────────────────────────────────────────────────────────
+const showEdit  = ref(false)
+const editing   = ref(false)
+const editErr   = ref('')
+const editPoId  = ref<number | null>(null)
+const editForm  = ref({ supplierId: null as number | null, orderDate: '', expectedDate: '', branchId: null as number | null, notes: '' })
+const editItems = ref<PoItem[]>([])
+
+async function openEdit(po: any) {
+  try {
+    const detail = await api.get(`/procurement/purchase-orders/${po.poId}`).then(r => r.data)
+    editPoId.value  = po.poId
+    editForm.value  = {
+      supplierId:   detail.items?.length ? null : null,  // will be set below
+      orderDate:    detail.orderDate ?? '',
+      expectedDate: detail.expectedDate ?? '',
+      branchId:     detail.branchId ?? null,
+      notes:        detail.notes ?? ''
+    }
+    // Find supplierId from the orders list
+    const order = orders.value.find(o => o.poId === po.poId)
+    const sup = suppliers.value.find(s => s.name === order?.supplierName)
+    editForm.value.supplierId = sup?.supplierId ?? null
+    editItems.value = (detail.items ?? []).map((i: any) => ({
+      productId: i.productId,
+      quantity:  String(i.quantity),
+      unitCost:  String(i.unitCost),
+    }))
+    if (!editItems.value.length) editItems.value = [{ productId: null, quantity: '', unitCost: '' }]
+    editErr.value = ''
+    showEdit.value = true
+  } catch { toast('Failed to load PO details.', 'error') }
 }
 
+const editLineTotal  = (item: PoItem) => (parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0)
+const editGrandTotal = computed(() => editItems.value.reduce((s, i) => s + editLineTotal(i), 0))
+function addEditItem() { editItems.value.push({ productId: null, quantity: '', unitCost: '' }) }
+function removeEditItem(i: number) { if (editItems.value.length > 1) editItems.value.splice(i, 1) }
+
+async function savePo() {
+  editErr.value = ''
+  if (!editForm.value.supplierId) { editErr.value = 'Select a supplier.'; return }
+  const validItems = editItems.value.filter(i => i.productId && parseFloat(i.quantity) > 0 && parseFloat(i.unitCost) > 0)
+  if (!validItems.length) { editErr.value = 'Add at least one complete line item.'; return }
+  editing.value = true
+  try {
+    await api.put(`/procurement/purchase-orders/${editPoId.value}`, {
+      supplierId:   editForm.value.supplierId,
+      orderDate:    editForm.value.orderDate,
+      expectedDate: editForm.value.expectedDate || null,
+      branchId:     editForm.value.branchId || null,
+      notes:        editForm.value.notes || null,
+      items: validItems.map(i => ({ productId: i.productId, quantity: parseFloat(i.quantity), unitCost: parseFloat(i.unitCost) })),
+    })
+    toast('Purchase order updated.')
+    showEdit.value = false
+    await load()
+  } catch (e: any) {
+    editErr.value = e.response?.data?.message ?? 'Failed to update PO.'
+  } finally { editing.value = false }
+}
+
+// ── Approve ────────────────────────────────────────────────────────────────────
+async function approvePo(po: any) {
+  if (!await confirmDialog(`Approve PO #${po.poId} from ${po.supplierName}? This will allow logistics to create a delivery.`)) return
+  try {
+    await api.put(`/procurement/purchase-orders/${po.poId}/approve`)
+    toast('Purchase order approved.')
+    await load()
+  } catch (e: any) { toast(e.response?.data?.message ?? 'Failed to approve PO.', 'error') }
+}
+
+// ── Cancel ─────────────────────────────────────────────────────────────────────
+async function cancelPo(po: any) {
+  if (!await confirmDialog(`Cancel PO #${po.poId} from ${po.supplierName}?`)) return
+  try {
+    await api.delete(`/procurement/purchase-orders/${po.poId}`)
+    toast('Purchase order cancelled.')
+    await load()
+  } catch (e: any) { toast(e.response?.data?.message ?? 'Failed to cancel PO.', 'error') }
+}
+
+// ── Detail ─────────────────────────────────────────────────────────────────────
 const showDetail = ref(false)
 const detail     = ref<any>(null)
 const detLoading = ref(false)
@@ -137,7 +202,10 @@ async function viewDetail(po: any) {
   finally { detLoading.value = false }
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+const phpFmt  = (v: number) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 2 }).format(v)
 const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+
 const statusTag = (s: string): string => ({
   Pending:      'ps-tag ps-tag-amber',
   Approved:     'ps-tag ps-tag-blue',
@@ -145,6 +213,13 @@ const statusTag = (s: string): string => ({
   Received:     'ps-tag ps-tag-green',
   Cancelled:    'ps-tag ps-tag-slate',
 }[s] ?? 'ps-tag ps-tag-slate')
+
+const receivingTag = (s: string): string => ({
+  Pending:  'ps-tag ps-tag-slate',
+  Partial:  'ps-tag ps-tag-amber',
+  Received: 'ps-tag ps-tag-green',
+}[s] ?? 'ps-tag ps-tag-slate')
+
 const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
 </script>
 
@@ -155,16 +230,34 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
     <div class="ps-page-header">
       <div>
         <h1 class="ps-page-title">Purchase Orders</h1>
-        <p class="ps-page-sub">Manage procurement and supplier orders.</p>
+        <p class="ps-page-sub">Create, approve, and manage procurement orders through the full workflow.</p>
       </div>
       <button @click="showCreate = true" class="ps-btn ps-btn-primary">
         <i class="ph ph-plus"></i> New PO
       </button>
     </div>
 
-    <!-- Datatable card -->
-    <div class="ps-card overflow-hidden">
+    <!-- Flow indicator -->
+    <div class="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-semibold">
+        <i class="ph-fill ph-pencil-simple"></i> Draft (Pending)
+      </span>
+      <i class="ph ph-arrow-right text-slate-300"></i>
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-semibold">
+        <i class="ph-fill ph-check-circle"></i> Approved
+      </span>
+      <i class="ph ph-arrow-right text-slate-300"></i>
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-700 font-semibold">
+        <i class="ph-fill ph-truck"></i> In-Transit (Logistics)
+      </span>
+      <i class="ph ph-arrow-right text-slate-300"></i>
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 border border-green-200 text-green-700 font-semibold">
+        <i class="ph-fill ph-warehouse"></i> Received
+      </span>
+    </div>
 
+    <!-- Table card -->
+    <div class="ps-card overflow-hidden">
       <div class="ps-table-toolbar">
         <div>
           <div class="ps-table-title">Purchase Orders</div>
@@ -179,8 +272,6 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
             <option value="">All Statuses</option>
             <option v-for="s in statuses" :key="s.statusId" :value="s.statusName">{{ s.statusName }}</option>
           </select>
-          <button class="ps-btn ps-btn-primary"><i class="ph ph-funnel"></i> Filter</button>
-          <button class="ps-btn ps-btn-dark"><i class="ph ph-download-simple"></i> Export</button>
         </div>
       </div>
 
@@ -202,7 +293,7 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
             <th>Items</th>
             <th>Total</th>
             <th>Status</th>
-            <th style="width: 100px"></th>
+            <th style="width: 130px"></th>
           </tr>
         </thead>
         <tbody>
@@ -219,14 +310,25 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
             <td class="text-slate-500">{{ fmtDate(o.expectedDate) }}</td>
             <td><span class="ps-tag ps-tag-slate">{{ o.itemCount }}</span></td>
             <td class="font-bold text-slate-800">{{ phpFmt(o.totalAmount) }}</td>
-            <td><span :class="statusTag(o.status)">{{ o.status }}</span></td>
+            <td>
+              <span :class="statusTag(o.status)">{{ o.status }}</span>
+              <div v-if="o.approvedBy" class="text-[10px] text-slate-400 mt-0.5">by {{ o.approvedBy }}</div>
+            </td>
             <td>
               <div class="flex items-center gap-1">
                 <button @click="viewDetail(o)"
                   class="w-8 h-8 inline-flex items-center justify-center rounded-full text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all" title="View">
                   <i class="ph ph-eye"></i>
                 </button>
-                <button v-if="o.status === 'Pending'" @click="cancelPo(o)"
+                <button v-if="o.status === 'Pending'" @click="openEdit(o)"
+                  class="w-8 h-8 inline-flex items-center justify-center rounded-full text-slate-400 hover:bg-amber-50 hover:text-amber-600 transition-all" title="Edit">
+                  <i class="ph ph-pencil-simple"></i>
+                </button>
+                <button v-if="o.status === 'Pending'" @click="approvePo(o)"
+                  class="w-8 h-8 inline-flex items-center justify-center rounded-full text-slate-400 hover:bg-green-50 hover:text-green-600 transition-all" title="Approve">
+                  <i class="ph ph-check-circle"></i>
+                </button>
+                <button v-if="o.status === 'Pending' || o.status === 'Approved'" @click="cancelPo(o)"
                   class="w-8 h-8 inline-flex items-center justify-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all" title="Cancel">
                   <i class="ph ph-x-circle"></i>
                 </button>
@@ -236,33 +338,27 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
         </tbody>
       </table>
 
-      <div v-if="!loading && filtered.length > 0" class="ps-pagination">
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(1)"><i class="ph ph-caret-double-left"></i></button>
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(page - 1)"><i class="ph ph-caret-left"></i></button>
-        <button v-for="p in totalPages" :key="p" :class="['ps-pg-btn', p === page && 'ps-pg-btn--active']" @click="goTo(p)">{{ p }}</button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(page + 1)"><i class="ph ph-caret-right"></i></button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(totalPages)"><i class="ph ph-caret-double-right"></i></button>
-        <span class="ps-pg-info">Showing {{ (page - 1) * pageSize + 1 }} to {{ Math.min(page * pageSize, filtered.length) }} of {{ filtered.length }}</span>
-        <select v-model="pageSize" class="ps-pg-size" @change="page = 1">
-          <option :value="10">10</option><option :value="25">25</option><option :value="50">50</option>
-        </select>
-      </div>
+      <PsPagination
+        v-if="!loading"
+        v-model:page="page"
+        v-model:pageSize="pageSize"
+        :total="filtered.length"
+        record-label="orders"
+      />
     </div>
 
-    <!-- Create PO Modal -->
+    <!-- ── Create PO Modal ──────────────────────────────────────────────────── -->
     <Teleport to="body">
       <Transition name="ps-modal">
         <div v-if="showCreate" class="ps-modal-backdrop" @click.self="showCreate = false">
-          <div class="ps-modal-card" style="max-width: 800px">
+          <div class="ps-modal-card" style="max-width: 820px">
             <div class="ps-modal-header">
               <h3 class="ps-modal-title">New Purchase Order</h3>
-              <button class="ps-modal-close" @click="showCreate = false" aria-label="Close">
-                <i class="ph ph-x"></i>
-              </button>
+              <button class="ps-modal-close" @click="showCreate = false"><i class="ph ph-x"></i></button>
             </div>
             <div class="ps-modal-body">
-              <div class="grid grid-cols-3 gap-3">
-                <div>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div class="sm:col-span-3">
                   <label class="ps-label">Supplier *</label>
                   <select v-model="poForm.supplierId" class="ps-input">
                     <option :value="null">— Select supplier —</option>
@@ -277,20 +373,22 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                   <label class="ps-label">Expected Delivery</label>
                   <input v-model="poForm.expectedDate" type="date" class="ps-input" />
                 </div>
-              </div>
-              <div>
-                <label class="ps-label">Branch <span style="color:#9CA3AF;font-weight:400">(optional — links stock receipt to a specific branch)</span></label>
-                <select v-model="poForm.branchId" class="ps-input">
-                  <option :value="null">— No specific branch —</option>
-                  <option v-for="b in branches" :key="b.branchId" :value="b.branchId">{{ b.branchName }}</option>
-                </select>
+                <div>
+                  <label class="ps-label">Branch <span class="text-slate-400 font-normal">(optional)</span></label>
+                  <select v-model="poForm.branchId" class="ps-input">
+                    <option :value="null">— Warehouse —</option>
+                    <option v-for="b in branches" :key="b.branchId" :value="b.branchId">{{ b.branchName }}</option>
+                  </select>
+                </div>
+                <div class="sm:col-span-3">
+                  <label class="ps-label">Notes <span class="text-slate-400 font-normal">(optional)</span></label>
+                  <input v-model="poForm.notes" placeholder="Purchase order notes…" class="ps-input" />
+                </div>
               </div>
 
-              <div class="flex items-center justify-between">
+              <div class="flex items-center justify-between mt-1">
                 <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Line Items</span>
-                <button @click="addItem" class="ps-btn ps-btn-outline ps-btn-sm">
-                  <i class="ph ph-plus"></i> Add Line
-                </button>
+                <button @click="addItem" class="ps-btn ps-btn-outline ps-btn-sm"><i class="ph ph-plus"></i> Add Line</button>
               </div>
 
               <div class="border border-slate-200 rounded-lg overflow-hidden">
@@ -298,8 +396,7 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                   <span>Product</span><span>Quantity</span><span>Unit Cost</span><span>Subtotal</span><span></span>
                 </div>
                 <div v-for="(item, idx) in items" :key="idx"
-                  class="grid items-center px-3 py-2 border-t border-slate-100 hover:bg-slate-50/50"
-                  style="grid-template-columns:1fr 110px 120px 110px 40px;gap:8px">
+                  class="grid items-center px-3 py-2 border-t border-slate-100" style="grid-template-columns:1fr 110px 120px 110px 40px;gap:8px">
                   <select v-model="item.productId" class="ps-input">
                     <option :value="null">— Select product —</option>
                     <option v-for="p in products" :key="p.productId" :value="p.productId">{{ p.productName }}</option>
@@ -317,9 +414,7 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
               <div class="text-right text-sm font-semibold text-slate-800 pt-3 border-t border-dashed border-slate-200">
                 Grand Total: <strong class="text-base">{{ phpFmt(grandTotal) }}</strong>
               </div>
-              <div v-if="createErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                {{ createErr }}
-              </div>
+              <div v-if="createErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{{ createErr }}</div>
             </div>
             <div class="ps-modal-footer">
               <button class="ps-btn ps-btn-outline" @click="showCreate = false">Cancel</button>
@@ -333,23 +428,106 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
       </Transition>
     </Teleport>
 
-    <!-- Detail Modal -->
+    <!-- ── Edit PO Modal ────────────────────────────────────────────────────── -->
+    <Teleport to="body">
+      <Transition name="ps-modal">
+        <div v-if="showEdit" class="ps-modal-backdrop" @click.self="showEdit = false">
+          <div class="ps-modal-card" style="max-width: 820px">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">Edit PO #{{ editPoId }}</h3>
+              <button class="ps-modal-close" @click="showEdit = false"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="ps-modal-body">
+              <div class="flex items-start gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 mb-1">
+                <i class="ph ph-warning text-lg flex-shrink-0 mt-0.5"></i>
+                Editing replaces all line items. Only Pending purchase orders can be edited.
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div class="sm:col-span-3">
+                  <label class="ps-label">Supplier *</label>
+                  <select v-model="editForm.supplierId" class="ps-input">
+                    <option :value="null">— Select supplier —</option>
+                    <option v-for="s in suppliers" :key="s.supplierId" :value="s.supplierId">{{ s.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="ps-label">Order Date</label>
+                  <input v-model="editForm.orderDate" type="date" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">Expected Delivery</label>
+                  <input v-model="editForm.expectedDate" type="date" class="ps-input" />
+                </div>
+                <div>
+                  <label class="ps-label">Branch</label>
+                  <select v-model="editForm.branchId" class="ps-input">
+                    <option :value="null">— Warehouse —</option>
+                    <option v-for="b in branches" :key="b.branchId" :value="b.branchId">{{ b.branchName }}</option>
+                  </select>
+                </div>
+                <div class="sm:col-span-3">
+                  <label class="ps-label">Notes</label>
+                  <input v-model="editForm.notes" placeholder="Purchase order notes…" class="ps-input" />
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between mt-1">
+                <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Line Items</span>
+                <button @click="addEditItem" class="ps-btn ps-btn-outline ps-btn-sm"><i class="ph ph-plus"></i> Add Line</button>
+              </div>
+
+              <div class="border border-slate-200 rounded-lg overflow-hidden">
+                <div class="grid bg-slate-50 px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider" style="grid-template-columns:1fr 110px 120px 110px 40px;gap:8px">
+                  <span>Product</span><span>Quantity</span><span>Unit Cost</span><span>Subtotal</span><span></span>
+                </div>
+                <div v-for="(item, idx) in editItems" :key="idx"
+                  class="grid items-center px-3 py-2 border-t border-slate-100" style="grid-template-columns:1fr 110px 120px 110px 40px;gap:8px">
+                  <select v-model="item.productId" class="ps-input">
+                    <option :value="null">— Select product —</option>
+                    <option v-for="p in products" :key="p.productId" :value="p.productId">{{ p.productName }}</option>
+                  </select>
+                  <input v-model="item.quantity" type="number" min="0" placeholder="0" class="ps-input" />
+                  <input v-model="item.unitCost" type="number" min="0" step="0.01" placeholder="0.00" class="ps-input" />
+                  <span class="font-semibold text-sm text-slate-800">{{ phpFmt(editLineTotal(item)) }}</span>
+                  <button @click="removeEditItem(idx)" :disabled="editItems.length === 1"
+                    class="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all disabled:opacity-30">
+                    <i class="ph ph-trash text-sm"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="text-right text-sm font-semibold text-slate-800 pt-3 border-t border-dashed border-slate-200">
+                Grand Total: <strong class="text-base">{{ phpFmt(editGrandTotal) }}</strong>
+              </div>
+              <div v-if="editErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{{ editErr }}</div>
+            </div>
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showEdit = false">Cancel</button>
+              <button class="ps-btn ps-btn-primary" :disabled="editing" @click="savePo">
+                <i v-if="editing" class="ph ph-spinner animate-spin"></i>
+                {{ editing ? 'Saving…' : 'Save Changes' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- ── Detail Modal ─────────────────────────────────────────────────────── -->
     <Teleport to="body">
       <Transition name="ps-modal">
         <div v-if="showDetail" class="ps-modal-backdrop" @click.self="showDetail = false">
-          <div class="ps-modal-card" style="max-width: 600px">
+          <div class="ps-modal-card" style="max-width: 680px">
             <div class="ps-modal-header">
               <h3 class="ps-modal-title">PO #{{ detail?.poId }} — {{ detail?.supplierName }}</h3>
-              <button class="ps-modal-close" @click="showDetail = false" aria-label="Close">
-                <i class="ph ph-x"></i>
-              </button>
+              <button class="ps-modal-close" @click="showDetail = false"><i class="ph ph-x"></i></button>
             </div>
             <div class="ps-modal-body">
               <div v-if="detLoading" class="flex items-center justify-center gap-2 py-10 text-slate-400">
                 <i class="ph ph-spinner animate-spin text-xl text-blue-500"></i> Loading…
               </div>
               <template v-else-if="detail">
-                <div class="grid grid-cols-4 gap-3">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div class="bg-slate-50 rounded-lg p-3">
                     <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</div>
                     <span :class="statusTag(detail.status)">{{ detail.status }}</span>
@@ -367,12 +545,17 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                     <div class="text-sm font-bold text-slate-900">{{ phpFmt(detail.totalAmount) }}</div>
                   </div>
                 </div>
+                <div v-if="detail.notes" class="px-3 py-2 bg-slate-50 rounded-lg text-sm text-slate-600">
+                  <span class="font-semibold text-slate-500 mr-2">Notes:</span>{{ detail.notes }}
+                </div>
                 <table class="w-full text-sm border border-slate-100 rounded-lg overflow-hidden">
                   <thead class="bg-slate-50">
                     <tr>
                       <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Product</th>
-                      <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Qty</th>
-                      <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Unit Cost</th>
+                      <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Ordered</th>
+                      <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Received</th>
+                      <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Remaining</th>
+                      <th class="px-3 py-2 text-center text-xs font-semibold text-slate-500">Status</th>
                       <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Subtotal</th>
                     </tr>
                   </thead>
@@ -380,7 +563,9 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                     <tr v-for="i in detail.items" :key="i.poItemId" class="border-t border-slate-100">
                       <td class="px-3 py-2.5 text-slate-700">{{ i.productName }}</td>
                       <td class="px-3 py-2.5 text-right text-slate-600">{{ Number(i.quantity).toLocaleString() }}</td>
-                      <td class="px-3 py-2.5 text-right text-slate-500">{{ phpFmt(i.unitCost) }}</td>
+                      <td class="px-3 py-2.5 text-right text-emerald-600 font-medium">{{ Number(i.receivedQty).toLocaleString() }}</td>
+                      <td class="px-3 py-2.5 text-right text-amber-600">{{ Number(i.remainingQty).toLocaleString() }}</td>
+                      <td class="px-3 py-2.5 text-center"><span :class="receivingTag(i.receivingStatus)">{{ i.receivingStatus }}</span></td>
                       <td class="px-3 py-2.5 text-right font-semibold text-slate-800">{{ phpFmt(i.subtotal) }}</td>
                     </tr>
                   </tbody>

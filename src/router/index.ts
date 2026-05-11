@@ -42,6 +42,7 @@ const LogisticsView        = () => import('../views/LogisticsView.vue')
 const PosView              = () => import('../views/PosView.vue')
 const SalesHistoryView     = () => import('../views/SalesHistoryView.vue')
 const BranchesView           = () => import('../views/BranchesView.vue')
+const BranchWorkspaceView    = () => import('../views/BranchWorkspaceView.vue')
 const ResourceCatalogView    = () => import('../views/ResourceCatalogView.vue')
 const PurchasingView         = () => import('../views/PurchasingView.vue')
 
@@ -119,7 +120,8 @@ const router = createRouter({
         { path: 'resources',      name: 'resources',      component: ResourceCatalogView,    meta: { title: 'Resource Catalog — RetailChain' } },
         { path: 'products',       name: 'products',       component: ProductsView,           meta: { title: 'Products — RetailChain' } },
         { path: 'suppliers',      name: 'suppliers',      component: SuppliersView,          meta: { title: 'Suppliers — RetailChain' } },
-        { path: 'branches',       name: 'branches',       component: BranchesView,           meta: { title: 'Branch Management — RetailChain' } },
+        { path: 'branches',          name: 'branches',          component: BranchesView,         meta: { title: 'Branch Management — RetailChain' } },
+        { path: 'branch/:branchId',  name: 'branch-workspace',  component: BranchWorkspaceView,  meta: { title: 'Branch Workspace — RetailChain' }, props: true },
         { path: 'analytics',      name: 'analytics',      component: TenantAnalyticsView,    meta: { title: 'Analytics — RetailChain' } },
         { path: 'audit',          name: 'audit',          component: TenantAuditView,        meta: { title: 'Audit Log — RetailChain' } },
         { path: 'notifications',  name: 'notifications',  component: NotificationsView,      meta: { title: 'Notifications — RetailChain' } },

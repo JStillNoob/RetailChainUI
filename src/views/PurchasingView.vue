@@ -126,7 +126,7 @@
             </div>
             <div class="text-right shrink-0">
               <p class="text-xs text-slate-400">Recommended</p>
-              <p class="text-lg font-bold text-amber-600">{{ Math.ceil(item.reorderQuantity) }} units</p>
+              <p class="text-lg font-bold text-amber-600">{{ Math.ceil(item.reorderQuantity) }} {{ item.unitName ?? 'units' }}</p>
             </div>
           </div>
         </div>
@@ -241,7 +241,7 @@
               class="flex items-center justify-between text-sm"
             >
               <span class="text-slate-700">{{ item.productName }} <span class="text-slate-400">— {{ item.branchName }}</span></span>
-              <span class="font-semibold text-slate-800">{{ Math.ceil(item.reorderQuantity) }} units</span>
+              <span class="font-semibold text-slate-800">{{ Math.ceil(item.reorderQuantity) }} {{ item.unitName ?? 'units' }}</span>
             </div>
           </div>
 

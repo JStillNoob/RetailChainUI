@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useConfirm } from '../composables/useConfirm'
 import { ref, computed, onMounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import api from '../services/api.ts'
 import { getBranches } from '../services/tenant.ts'
 import { useToast } from '../composables/useToast.ts'
@@ -9,6 +10,7 @@ defineOptions({ name: 'PosView' })
 
 const { confirmDialog } = useConfirm()
 const { toast } = useToast()
+const route = useRoute()
 
 // ── Branch selection ─────────────────────────────────────────────────────────
 interface Branch { branchId: number; branchName: string; address?: string }
@@ -18,7 +20,15 @@ const selectedBranch  = ref<Branch | null>(null)
 const branchLoading   = ref(true)
 
 onMounted(async () => {
-  try { branches.value = await getBranches() }
+  try {
+    branches.value = await getBranches()
+    // Preselect branch from ?branchId= query (used when launching from Branch Workspace)
+    const qid = Number(route.query.branchId)
+    if (qid) {
+      const match = branches.value.find(b => b.branchId === qid)
+      if (match) { selectedBranch.value = match; await searchProducts() }
+    }
+  }
   catch { toast('Failed to load branches.', 'error') }
   finally { branchLoading.value = false }
 })

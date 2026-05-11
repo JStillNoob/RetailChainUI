@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { getAuditLogs } from '../../services/superadmin.ts'
+import PsPagination from '../../components/PsPagination.vue'
 
 defineOptions({ name: 'AuditLogsView' })
 
@@ -24,9 +25,6 @@ async function load() {
   finally { loading.value = false }
 }
 onMounted(load)
-
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
-function goTo(p: number) { if (p >= 1 && p <= totalPages.value) { page.value = p; load() } }
 
 function resetFilters() {
   filters.value = { tenantId: '', userId: '', module: '', action: '', from: '', to: '' }
@@ -124,13 +122,14 @@ function resetFilters() {
         </tbody>
       </table>
 
-      <div v-if="!loading && logs.length > 0" class="ps-pagination">
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(1)"><i class="ph ph-caret-double-left"></i></button>
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(page - 1)"><i class="ph ph-caret-left"></i></button>
-        <span class="ps-pg-info">Page {{ page }} of {{ totalPages }}</span>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(page + 1)"><i class="ph ph-caret-right"></i></button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(totalPages)"><i class="ph ph-caret-double-right"></i></button>
-      </div>
+      <PsPagination
+        v-if="!loading"
+        v-model:page="page"
+        v-model:pageSize="pageSize"
+        :total="total"
+        record-label="logs"
+        @change="load"
+      />
     </div>
   </div>
 </template>

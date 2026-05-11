@@ -3,6 +3,7 @@ import { useConfirm } from '../composables/useConfirm'
 import { ref, onMounted, computed } from 'vue'
 import { getProducts, createProduct, deleteProduct, getProductAttrTemplates, saveProductAttrValues, getResources } from '../services/tenant.ts'
 import { useAuthStore } from '../stores/auth.ts'
+import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'ProductsView' })
 
@@ -48,9 +49,7 @@ const filtered = computed(() => {
 
 const page     = ref(1)
 const pageSize = ref(10)
-const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize.value)))
 const paged = computed(() => filtered.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
-function goTo(p: number) { if (p >= 1 && p <= totalPages.value) page.value = p }
 
 interface AttrTemplate {
   prodAttrTemplateId: number
@@ -236,17 +235,13 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
         </tbody>
       </table>
 
-      <div v-if="!loading && filtered.length > 0" class="ps-pagination">
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(1)"><i class="ph ph-caret-double-left"></i></button>
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(page - 1)"><i class="ph ph-caret-left"></i></button>
-        <button v-for="pg in totalPages" :key="pg" :class="['ps-pg-btn', pg === page && 'ps-pg-btn--active']" @click="goTo(pg)">{{ pg }}</button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(page + 1)"><i class="ph ph-caret-right"></i></button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(totalPages)"><i class="ph ph-caret-double-right"></i></button>
-        <span class="ps-pg-info">Showing {{ (page - 1) * pageSize + 1 }} to {{ Math.min(page * pageSize, filtered.length) }} of {{ filtered.length }}</span>
-        <select v-model="pageSize" class="ps-pg-size" @change="page = 1">
-          <option :value="10">10</option><option :value="25">25</option><option :value="50">50</option>
-        </select>
-      </div>
+      <PsPagination
+        v-if="!loading"
+        v-model:page="page"
+        v-model:pageSize="pageSize"
+        :total="filtered.length"
+        record-label="products"
+      />
     </div>
 
     <!-- Add Product Modal -->

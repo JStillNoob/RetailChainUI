@@ -3,6 +3,7 @@ import { useConfirm } from '../../composables/useConfirm'
 import { ref, computed, onMounted } from 'vue'
 import { getAdmins, createAdmin, deleteAdmin } from '../../services/superadmin.ts'
 import { useAuthStore } from '../../stores/auth.ts'
+import PsPagination from '../../components/PsPagination.vue'
 
 interface AdminUser {
   userId: number
@@ -34,9 +35,7 @@ onMounted(load)
 
 const page     = ref(1)
 const pageSize = ref(10)
-const totalPages = computed(() => Math.max(1, Math.ceil(admins.value.length / pageSize.value)))
 const paged = computed(() => admins.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
-function goTo(p: number) { if (p >= 1 && p <= totalPages.value) page.value = p }
 
 async function submit() {
   if (!form.value.firstName || !form.value.email || !form.value.password) {
@@ -133,14 +132,13 @@ const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 
         </tbody>
       </table>
 
-      <div v-if="!loading && admins.length > 0" class="ps-pagination">
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(1)"><i class="ph ph-caret-double-left"></i></button>
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(page - 1)"><i class="ph ph-caret-left"></i></button>
-        <button v-for="p in totalPages" :key="p" :class="['ps-pg-btn', p === page && 'ps-pg-btn--active']" @click="goTo(p)">{{ p }}</button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(page + 1)"><i class="ph ph-caret-right"></i></button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(totalPages)"><i class="ph ph-caret-double-right"></i></button>
-        <span class="ps-pg-info">Showing {{ (page - 1) * pageSize + 1 }} to {{ Math.min(page * pageSize, admins.length) }} of {{ admins.length }}</span>
-      </div>
+      <PsPagination
+        v-if="!loading"
+        v-model:page="page"
+        v-model:pageSize="pageSize"
+        :total="admins.length"
+        record-label="admins"
+      />
     </div>
 
     <!-- Create modal -->

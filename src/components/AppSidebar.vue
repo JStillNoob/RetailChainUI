@@ -54,21 +54,23 @@ const isActive = (to?: string) => {
 const isAnyChildActive = (item: NavItem): boolean =>
   !!item.children?.some(c => isActive(c.to) || isAnyChildActive(c))
 
-// ── Expand/collapse state for tree-parent items ───────────────────────────────
+// ── Expand/collapse state for tree-parent items (accordion: one at a time) ───
 const expanded = reactive<Record<string, boolean>>({})
 
 function toggleExpanded(item: NavItem) {
-  expanded[item.id] = !expanded[item.id]
+  const wasOpen = isExpanded(item)
+  for (const k of Object.keys(expanded)) expanded[k] = false
+  expanded[item.id] = !wasOpen
 }
 
 const isExpanded = (item: NavItem) =>
   expanded[item.id] ?? isAnyChildActive(item)
 
-// Auto-expand a parent when navigating into one of its children.
+// Auto-expand only the parent of the current route; collapse all others.
 watch(() => route.path, () => {
   for (const group of navGroups.value) {
     for (const item of group.items) {
-      if (item.children && isAnyChildActive(item)) expanded[item.id] = true
+      if (item.children) expanded[item.id] = isAnyChildActive(item)
     }
   }
 }, { immediate: true })

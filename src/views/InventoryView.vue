@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
 import { useToast } from '../composables/useToast.ts'
+import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'InventoryView' })
 
@@ -34,9 +35,7 @@ const filtered = computed(() => {
 
 const page     = ref(1)
 const pageSize = ref(10)
-const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize.value)))
 const paged = computed(() => filtered.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
-function goTo(p: number) { if (p >= 1 && p <= totalPages.value) page.value = p }
 
 const stockColor = (item: any) => {
   if (item.qtyOnHand === 0) return '#EF4444'
@@ -48,8 +47,11 @@ const stockTagCls = (item: any) => {
   if (item.isLowStock)      return 'ps-tag ps-tag-amber'
   return 'ps-tag ps-tag-green'
 }
-const stockLabel = (item: any) =>
-  item.qtyOnHand === 0 ? 'Out of Stock' : item.isLowStock ? 'Low' : 'OK'
+const stockLabel = (item: any) => {
+  if (item.qtyOnHand === 0) return 'Out of Stock'
+  if (item.isLowStock)      return 'Low'
+  return 'OK'
+}
 const stockBarPct = (item: any) => {
   if (item.qtyOnHand === 0 || item.reorderPoint === 0) return 0
   return Math.min((item.qtyOnHand / (item.reorderPoint * 3)) * 100, 100)
@@ -70,7 +72,7 @@ function openAdjust(item: any) {
 
 async function saveAdjust() {
   adjustErr.value = ''
-  const qty = parseFloat(adjustForm.value.quantity)
+  const qty = Number.parseFloat(adjustForm.value.quantity)
   if (!qty || qty <= 0) { adjustErr.value = 'Enter a valid quantity.'; return }
   adjustSaving.value = true
   try {
@@ -158,16 +160,15 @@ const okCount = computed(() => items.value.length - lowCount.value)
             <i class="ph ph-magnifying-glass"></i>
             <input v-model="search" placeholder="Search…" />
           </div>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <button type="button" role="switch" :aria-checked="lowOnly"
-              @click="lowOnly = !lowOnly; load()"
+          <div class="flex items-center gap-2 cursor-pointer" @click="lowOnly = !lowOnly; load()">
+            <button type="button" role="switch" :aria-checked="lowOnly" aria-label="Low stock only"
               :class="['relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors duration-200',
                 lowOnly ? 'bg-blue-500' : 'bg-slate-200']">
               <span :class="['inline-block h-4 w-4 mt-0.5 transform rounded-full bg-white shadow transition-transform',
                 lowOnly ? 'translate-x-4' : 'translate-x-0.5']"></span>
             </button>
-            <span class="text-sm text-slate-600 font-medium">Low stock only</span>
-          </label>
+            <span class="text-sm text-slate-600 font-medium select-none">Low stock only</span>
+          </div>
           <button class="ps-btn ps-btn-primary"><i class="ph ph-funnel"></i> Filter</button>
           <button class="ps-btn ps-btn-dark"><i class="ph ph-download-simple"></i> Export</button>
         </div>
@@ -220,17 +221,13 @@ const okCount = computed(() => items.value.length - lowCount.value)
         </tbody>
       </table>
 
-      <div v-if="!loading && filtered.length > 0" class="ps-pagination">
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(1)"><i class="ph ph-caret-double-left"></i></button>
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(page - 1)"><i class="ph ph-caret-left"></i></button>
-        <button v-for="p in totalPages" :key="p" :class="['ps-pg-btn', p === page && 'ps-pg-btn--active']" @click="goTo(p)">{{ p }}</button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(page + 1)"><i class="ph ph-caret-right"></i></button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(totalPages)"><i class="ph ph-caret-double-right"></i></button>
-        <span class="ps-pg-info">Showing {{ (page - 1) * pageSize + 1 }} to {{ Math.min(page * pageSize, filtered.length) }} of {{ filtered.length }} items</span>
-        <select v-model="pageSize" class="ps-pg-size" @change="page = 1">
-          <option :value="10">10</option><option :value="25">25</option><option :value="50">50</option>
-        </select>
-      </div>
+      <PsPagination
+        v-if="!loading"
+        v-model:page="page"
+        v-model:pageSize="pageSize"
+        :total="filtered.length"
+        record-label="items"
+      />
     </div>
 
     <!-- Adjust Modal -->
@@ -245,10 +242,10 @@ const okCount = computed(() => items.value.length - lowCount.value)
               </button>
             </div>
             <div class="ps-modal-body">
-              <p class="text-sm text-slate-500">Current: <strong class="text-slate-800">{{ Number(adjustItem?.qtyOnHand).toLocaleString() }} units</strong></p>
+              <p class="text-sm text-slate-500">Current: <strong class="text-slate-800">{{ Number(adjustItem?.qtyOnHand).toLocaleString() }} {{ adjustItem?.unitName ?? 'units' }}</strong></p>
 
               <div>
-                <label class="ps-label">Adjustment Type</label>
+                <div class="ps-label">Adjustment Type</div>
                 <div class="flex gap-2">
                   <button type="button" @click="adjustForm.adjustmentType = 'StockIn'"
                     :class="['flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-semibold transition-all cursor-pointer flex-1 justify-center',
@@ -265,16 +262,16 @@ const okCount = computed(() => items.value.length - lowCount.value)
 
               <div class="grid grid-cols-2 gap-3">
                 <div>
-                  <label class="ps-label">Quantity *</label>
-                  <input v-model="adjustForm.quantity" type="number" placeholder="0" class="ps-input" />
+                  <label for="adj-qty" class="ps-label">Quantity *</label>
+                  <input id="adj-qty" v-model="adjustForm.quantity" type="number" placeholder="0" class="ps-input" />
                 </div>
                 <div>
-                  <label class="ps-label">Location</label>
-                  <input v-model="adjustForm.location" placeholder="e.g. Aisle 3" class="ps-input" />
+                  <label for="adj-location" class="ps-label">Location</label>
+                  <input id="adj-location" v-model="adjustForm.location" placeholder="e.g. Aisle 3" class="ps-input" />
                 </div>
                 <div class="col-span-2">
-                  <label class="ps-label">Note</label>
-                  <input v-model="adjustForm.note" placeholder="Optional note" class="ps-input" />
+                  <label for="adj-note" class="ps-label">Note</label>
+                  <input id="adj-note" v-model="adjustForm.note" placeholder="Optional note" class="ps-input" />
                 </div>
               </div>
 

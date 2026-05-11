@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth.ts'
 import { useToast } from '../composables/useToast.ts'
 import { useConfirm } from '../composables/useConfirm'
 import { getResources, getResourceUnits, createResource, updateResource, deleteResource, getUnits, createUnit, deleteUnit } from '../services/tenant.ts'
+import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'ResourceCatalogView' })
 
@@ -56,9 +57,7 @@ const filtered = computed(() => {
 
 const page     = ref(1)
 const pageSize = ref(10)
-const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize.value)))
 const paged = computed(() => filtered.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
-function goTo(p: number) { if (p >= 1 && p <= totalPages.value) page.value = p }
 
 const showModal = ref(false)
 const isEdit    = ref(false)
@@ -248,17 +247,13 @@ async function removeUnit(id: number, name: string) {
         </tbody>
       </table>
 
-      <div v-if="!loading && filtered.length > 0" class="ps-pagination">
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(1)"><i class="ph ph-caret-double-left"></i></button>
-        <button class="ps-pg-btn" :disabled="page === 1" @click="goTo(page - 1)"><i class="ph ph-caret-left"></i></button>
-        <button v-for="p in totalPages" :key="p" :class="['ps-pg-btn', p === page && 'ps-pg-btn--active']" @click="goTo(p)">{{ p }}</button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(page + 1)"><i class="ph ph-caret-right"></i></button>
-        <button class="ps-pg-btn" :disabled="page === totalPages" @click="goTo(totalPages)"><i class="ph ph-caret-double-right"></i></button>
-        <span class="ps-pg-info">Showing {{ (page - 1) * pageSize + 1 }} to {{ Math.min(page * pageSize, filtered.length) }} of {{ filtered.length }} resources</span>
-        <select v-model="pageSize" class="ps-pg-size" @change="page = 1">
-          <option :value="10">10</option><option :value="25">25</option><option :value="50">50</option>
-        </select>
-      </div>
+      <PsPagination
+        v-if="!loading"
+        v-model:page="page"
+        v-model:pageSize="pageSize"
+        :total="filtered.length"
+        record-label="resources"
+      />
     </div>
 
     <!-- Modal -->

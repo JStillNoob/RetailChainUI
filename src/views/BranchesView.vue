@@ -1,45 +1,93 @@
 <script setup lang="ts">
-import { useConfirm } from '../composables/useConfirm'
+/**
+ * BranchesView — entry list for branch management.
+ * Each card shows summary stats and routes into a per-branch workspace.
+ * Flow: Sidebar → Branches → Select Branch → Branch Workspace
+ */
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   getBranches, createBranch, updateBranch, deleteBranch,
-  getBranchInventory, addProductToBranch, setMinQty,
-  getBranchStockOverview, getProducts
+  getBranchStockOverview,
 } from '../services/tenant.ts'
+import api from '../services/api.ts'
 import { useToast } from '../composables/useToast.ts'
+import { useConfirm } from '../composables/useConfirm'
 
 defineOptions({ name: 'BranchesView' })
 
+const router = useRouter()
 const { confirmDialog } = useConfirm()
 const { toast } = useToast()
 
-// ── Branches list ────────────────────────────────────────────────────────────
+// ── Branch list ──────────────────────────────────────────────────────────────
 const branches  = ref<any[]>([])
+const overview  = ref<any[]>([])
+const todayMap  = ref<Map<number, { count: number; total: number }>>(new Map())
 const loading   = ref(true)
 const search    = ref('')
 
-async function loadBranches() {
+async function loadAll() {
   loading.value = true
-  try { branches.value = await getBranches() }
-  catch { toast('Failed to load branches.', 'error') }
+  try {
+    const [list, ov] = await Promise.all([getBranches(), getBranchStockOverview()])
+    branches.value = list
+    overview.value = ov
+
+    // Fetch today's sales per branch in parallel
+    const today = new Date().toISOString().slice(0, 10)
+    const m = new Map<number, { count: number; total: number }>()
+    await Promise.all(list.map(async (b: any) => {
+      try {
+        const r = await api.get('/cashier/sales/all', {
+          params: { branchId: b.branchId, date: today, page: 1, pageSize: 200 },
+        }).then(rr => rr.data)
+        const total = (r.items ?? []).reduce((s: number, x: any) => s + Number(x.totalAmount ?? 0), 0)
+        m.set(b.branchId, { count: r.total ?? 0, total })
+      } catch {
+        m.set(b.branchId, { count: 0, total: 0 })
+      }
+    }))
+    todayMap.value = m
+  } catch { toast('Failed to load branches.', 'error') }
   finally { loading.value = false }
 }
-onMounted(loadBranches)
+onMounted(loadAll)
+
+const enriched = computed(() => {
+  return branches.value.map((b: any) => {
+    const ov = overview.value.find((o: any) => o.branchId === b.branchId) ?? {}
+    const today = todayMap.value.get(b.branchId) ?? { count: 0, total: 0 }
+    return {
+      ...b,
+      totalProducts: ov.totalProducts ?? 0,
+      totalStock:    ov.totalStock ?? 0,
+      lowStockCount: ov.lowStockCount ?? 0,
+      outOfStock:    ov.outOfStock ?? 0,
+      todayCount:    today.count,
+      todayTotal:    today.total,
+    }
+  })
+})
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase()
   return q
-    ? branches.value.filter(b => b.branchName?.toLowerCase().includes(q) || b.address?.toLowerCase().includes(q))
-    : branches.value
+    ? enriched.value.filter(b => b.branchName?.toLowerCase().includes(q) || b.address?.toLowerCase().includes(q))
+    : enriched.value
 })
 
-// ── Create / Edit branch ─────────────────────────────────────────────────────
-const showForm  = ref(false)
-const editId    = ref<number | null>(null)
-const formName  = ref('')
-const formAddr  = ref('')
+// ── Navigation ──────────────────────────────────────────────────────────────
+function viewBranch(b: any)   { router.push({ name: 'branch-workspace', params: { branchId: String(b.branchId) } }) }
+function openCashier(b: any)  { router.push({ name: 'pos', query: { branchId: String(b.branchId) } }) }
+
+// ── Create / Edit branch modal ───────────────────────────────────────────────
+const showForm   = ref(false)
+const editId     = ref<number | null>(null)
+const formName   = ref('')
+const formAddr   = ref('')
 const formStatus = ref('Active')
-const saving    = ref(false)
+const saving     = ref(false)
 
 function openCreate() {
   editId.value = null; formName.value = ''; formAddr.value = ''; formStatus.value = 'Active'
@@ -63,11 +111,9 @@ async function saveBranch() {
       toast('Branch created.')
     }
     closeForm()
-    await loadBranches()
-    await loadOverview()
+    await loadAll()
   } catch (e: any) {
-    const msg = e?.response?.data?.message ?? 'Failed to save branch.'
-    toast(msg, 'error')
+    toast(e?.response?.data?.message ?? 'Failed to save branch.', 'error')
   } finally { saving.value = false }
 }
 
@@ -76,384 +122,179 @@ async function removeBranch(b: any) {
   try {
     await deleteBranch(b.branchId)
     toast('Branch deleted.')
-    await loadBranches()
-    await loadOverview()
+    await loadAll()
   } catch { toast('Failed to delete branch.', 'error') }
 }
 
-// ── Stock Overview (cross-branch dashboard) ──────────────────────────────────
-const overview = ref<any[]>([])
-const overviewLoading = ref(false)
+const fmtPeso = (n: number) => '₱' + Number(n ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-async function loadOverview() {
-  overviewLoading.value = true
-  try { overview.value = await getBranchStockOverview() }
-  catch { /* silently fail — no branches yet */ }
-  finally { overviewLoading.value = false }
-}
-onMounted(loadOverview)
-
-// ── Branch inventory drawer ──────────────────────────────────────────────────
-const selectedBranch = ref<any>(null)
-const branchInv      = ref<any[]>([])
-const invLoading     = ref(false)
-const invSearch      = ref('')
-const showLowOnly    = ref(false)
-
-const filteredInv = computed(() => {
-  let list = branchInv.value
-  if (showLowOnly.value) list = list.filter(i => i.isLowStock)
-  const q = invSearch.value.toLowerCase()
-  return q ? list.filter(i => i.productName?.toLowerCase().includes(q)) : list
-})
-
-async function openBranch(b: any) {
-  selectedBranch.value = b
-  invLoading.value = true
-  try { branchInv.value = await getBranchInventory(b.branchId) }
-  catch { toast('Failed to load inventory.', 'error') }
-  finally { invLoading.value = false }
-}
-function closeBranch() { selectedBranch.value = null; branchInv.value = []; showLowOnly.value = false; invSearch.value = '' }
-
-// ── Add product to branch ────────────────────────────────────────────────────
-const showAddProduct = ref(false)
-const products       = ref<any[]>([])
-const apProductId    = ref<number | null>(null)
-const apInitialQty   = ref(0)
-const apMinQty       = ref(0)
-const apSaving       = ref(false)
-
-async function openAddProduct() {
-  if (!products.value.length) {
-    try { products.value = await getProducts() } catch { toast('Failed to load products.', 'error'); return }
-  }
-  apProductId.value = null; apInitialQty.value = 0; apMinQty.value = 0
-  showAddProduct.value = true
-}
-
-async function confirmAddProduct() {
-  if (!apProductId.value) { toast('Select a product.', 'error'); return }
-  apSaving.value = true
-  try {
-    await addProductToBranch(selectedBranch.value.branchId, {
-      productId: apProductId.value,
-      initialQty: apInitialQty.value,
-      minQty: apMinQty.value
-    })
-    toast('Product added to branch.')
-    showAddProduct.value = false
-    branchInv.value = await getBranchInventory(selectedBranch.value.branchId)
-  } catch { toast('Failed to add product (may already exist).', 'error') }
-  finally { apSaving.value = false }
-}
-
-// ── Edit MinQty inline ────────────────────────────────────────────────────────
-const editingMinQty   = ref<number | null>(null)
-const minQtyInput     = ref(0)
-
-function startEditMinQty(item: any) { editingMinQty.value = item.inventoryId; minQtyInput.value = item.minQty }
-async function saveMinQty(item: any) {
-  try {
-    await setMinQty(selectedBranch.value.branchId, item.inventoryId, minQtyInput.value)
-    item.minQty = minQtyInput.value
-    item.isLowStock = item.minQty > 0 && item.qtyOnHand <= item.minQty
-    toast('Min qty updated.')
-  } catch { toast('Failed to update min qty.', 'error') }
-  finally { editingMinQty.value = null }
-}
-
-const stockTagCls = (item: any) => {
-  if (item.qtyOnHand === 0) return 'ps-tag ps-tag-red'
-  if (item.isLowStock)      return 'ps-tag ps-tag-amber'
-  return 'ps-tag ps-tag-green'
-}
-const stockLabel = (item: any) => {
-  if (item.qtyOnHand === 0) return 'Out of Stock'
-  if (item.isLowStock)      return 'Low Stock'
-  return 'In Stock'
-}
+// Aggregate KPI across all branches
+const kpiBranches  = computed(() => filtered.value.length)
+const kpiProducts  = computed(() => filtered.value.reduce((s, b) => s + (b.totalProducts ?? 0), 0))
+const kpiLowStock  = computed(() => filtered.value.reduce((s, b) => s + (b.lowStockCount ?? 0), 0))
+const kpiTodaySales= computed(() => filtered.value.reduce((s, b) => s + (b.todayTotal ?? 0), 0))
 </script>
 
 <template>
-  <div class="inv-page">
+  <div class="flex flex-col gap-6">
 
-    <!-- ══ Header ══════════════════════════════════════════════════════════════ -->
-    <div class="page-header">
+    <!-- ══ Header ══════════════════════════════════════════════════════════ -->
+    <div class="flex items-start justify-between gap-3 flex-wrap">
       <div>
-        <h2 class="page-title">Branch Management</h2>
-        <p class="page-sub">Create branches, track per-branch inventory and low-stock alerts.</p>
+        <h1 class="text-2xl font-bold text-slate-800">Branches</h1>
+        <p class="text-sm text-slate-500">Select a branch to open its workspace and manage inventory, cashier, sales and staff.</p>
       </div>
-      <button class="btn-primary" @click="openCreate">
-        <i class="ph ph-plus" /> Add Branch
-      </button>
-    </div>
-
-    <!-- ══ Stock Overview Cards ════════════════════════════════════════════════ -->
-    <section v-if="overview.length" class="overview-section">
-      <h3 class="section-label">Cross-Branch Overview</h3>
-      <div class="overview-grid">
-        <div v-for="ov in overview" :key="ov.branchId" class="ov-card" @click="openBranch(branches.find(b => b.branchId === ov.branchId))">
-          <div class="ov-card__name">{{ ov.branchName }}</div>
-          <div class="ov-card__stats">
-            <div class="ov-stat">
-              <span class="ov-stat__val">{{ ov.totalProducts }}</span>
-              <span class="ov-stat__lbl">Products</span>
-            </div>
-            <div class="ov-stat">
-              <span class="ov-stat__val">{{ ov.totalStock }}</span>
-              <span class="ov-stat__lbl">Total Stock</span>
-            </div>
-            <div class="ov-stat" :class="{ 'ov-stat--warn': ov.lowStockCount > 0 }">
-              <span class="ov-stat__val">{{ ov.lowStockCount }}</span>
-              <span class="ov-stat__lbl">Low Stock</span>
-            </div>
-            <div class="ov-stat" :class="{ 'ov-stat--danger': ov.outOfStock > 0 }">
-              <span class="ov-stat__val">{{ ov.outOfStock }}</span>
-              <span class="ov-stat__lbl">Out of Stock</span>
-            </div>
-          </div>
-          <div v-if="ov.lowStockCount > 0" class="ov-card__alert">
-            <i class="ph ph-warning" /> {{ ov.lowStockCount }} item(s) need restocking
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ══ Branch list ═════════════════════════════════════════════════════════ -->
-    <div class="toolbar">
-      <div class="search-wrap">
-        <i class="ph ph-magnifying-glass" />
-        <input v-model="search" placeholder="Search branches…" />
+      <div class="flex gap-2">
+        <button @click="loadAll" :disabled="loading" class="ps-btn ps-btn-outline">
+          <i class="ph ph-arrows-clockwise" :class="{ 'animate-spin': loading }"></i> Refresh
+        </button>
+        <button class="ps-btn ps-btn-primary" @click="openCreate">
+          <i class="ph ph-plus"></i> Add Branch
+        </button>
       </div>
     </div>
 
-    <div v-if="loading" class="state-msg"><i class="ph ph-spinner" /> Loading…</div>
-
-    <div v-else-if="filtered.length === 0" class="state-msg">No branches found.</div>
-
-    <div v-else class="branch-grid">
-      <div v-for="b in filtered" :key="b.branchId" class="branch-card">
-        <div class="branch-card__header">
-          <div>
-            <div class="branch-card__name">{{ b.branchName }}</div>
-            <div class="branch-card__addr">{{ b.address || '—' }}</div>
-          </div>
-          <span :class="b.status === 'Active' ? 'ps-tag ps-tag-green' : 'ps-tag ps-tag-grey'">{{ b.status }}</span>
-        </div>
-        <div class="branch-card__actions">
-          <button class="btn-sm btn-outline" @click="openBranch(b)"><i class="ph ph-warehouse" /> Inventory</button>
-          <button class="btn-sm btn-outline" @click="openEdit(b)"><i class="ph ph-pencil" /> Edit</button>
-          <button class="btn-sm btn-danger-outline" @click="removeBranch(b)"><i class="ph ph-trash" /></button>
-        </div>
+    <!-- ══ Aggregate KPI bar ════════════════════════════════════════════════ -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-white border border-slate-200 rounded-xl p-4">
+        <div class="text-xs uppercase tracking-wider font-semibold text-slate-400">Branches</div>
+        <div class="text-2xl font-extrabold text-slate-800 mt-1">{{ kpiBranches }}</div>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-4">
+        <div class="text-xs uppercase tracking-wider font-semibold text-slate-400">Total Products</div>
+        <div class="text-2xl font-extrabold text-slate-800 mt-1">{{ kpiProducts.toLocaleString() }}</div>
+      </div>
+      <div class="bg-white border border-amber-200 rounded-xl p-4">
+        <div class="text-xs uppercase tracking-wider font-semibold text-amber-600">Low Stock Items</div>
+        <div class="text-2xl font-extrabold text-amber-700 mt-1">{{ kpiLowStock }}</div>
+      </div>
+      <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-xl p-4">
+        <div class="text-xs uppercase tracking-wider font-semibold opacity-80">Today's Sales (All)</div>
+        <div class="text-2xl font-extrabold mt-1">{{ fmtPeso(kpiTodaySales) }}</div>
       </div>
     </div>
 
-    <!-- ══ Create / Edit Modal ═════════════════════════════════════════════════ -->
-    <div v-if="showForm" class="modal-backdrop" @click.self="closeForm">
-      <div class="modal">
-        <div class="modal__header">
-          <span>{{ editId ? 'Edit Branch' : 'New Branch' }}</span>
-          <button class="modal__close" @click="closeForm"><i class="ph ph-x" /></button>
-        </div>
-        <div class="modal__body">
-          <label class="form-label">Branch Name *</label>
-          <input v-model="formName" class="form-control" placeholder="e.g. Main Branch" />
+    <!-- ══ Toolbar ════════════════════════════════════════════════════════════ -->
+    <div class="ps-search" style="max-width:340px">
+      <i class="ph ph-magnifying-glass"></i>
+      <input v-model="search" placeholder="Search branches…" />
+    </div>
 
-          <label class="form-label mt-2">Address</label>
-          <input v-model="formAddr" class="form-control" placeholder="e.g. 123 Main St" />
+    <!-- ══ Branch cards ═══════════════════════════════════════════════════════ -->
+    <div v-if="loading" class="py-12 text-center text-slate-400">Loading…</div>
+    <div v-else-if="filtered.length === 0" class="py-12 text-center text-slate-400">No branches found.</div>
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div v-for="b in filtered" :key="b.branchId"
+        class="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-lg transition-shadow flex flex-col">
 
-          <template v-if="editId">
-            <label class="form-label mt-2">Status</label>
-            <select v-model="formStatus" class="form-control">
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
-          </template>
+        <!-- Card header -->
+        <div class="flex items-start justify-between gap-2 mb-3">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <div class="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                <i class="ph-fill ph-storefront text-lg text-indigo-600"></i>
+              </div>
+              <h3 class="font-bold text-slate-800 truncate">{{ b.branchName }}</h3>
+            </div>
+            <p class="text-xs text-slate-500 mt-1.5 ml-11 line-clamp-1">{{ b.address || 'No address' }}</p>
+          </div>
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
+            :class="b.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'">
+            {{ b.status }}
+          </span>
         </div>
-        <div class="modal__footer">
-          <button class="btn-outline" @click="closeForm">Cancel</button>
-          <button class="btn-primary" :disabled="saving" @click="saveBranch">
-            {{ saving ? 'Saving…' : editId ? 'Save Changes' : 'Create Branch' }}
+
+        <!-- Stats grid -->
+        <div class="grid grid-cols-4 gap-2 my-3 text-center">
+          <div class="bg-slate-50 rounded-lg py-2">
+            <div class="text-base font-extrabold text-slate-800">{{ b.totalProducts }}</div>
+            <div class="text-[10px] uppercase tracking-wide text-slate-500">Products</div>
+          </div>
+          <div class="bg-slate-50 rounded-lg py-2">
+            <div class="text-base font-extrabold text-slate-800">{{ b.totalStock }}</div>
+            <div class="text-[10px] uppercase tracking-wide text-slate-500">Stock</div>
+          </div>
+          <div class="rounded-lg py-2" :class="b.lowStockCount > 0 ? 'bg-amber-50' : 'bg-slate-50'">
+            <div class="text-base font-extrabold" :class="b.lowStockCount > 0 ? 'text-amber-700' : 'text-slate-800'">{{ b.lowStockCount }}</div>
+            <div class="text-[10px] uppercase tracking-wide" :class="b.lowStockCount > 0 ? 'text-amber-700' : 'text-slate-500'">Low</div>
+          </div>
+          <div class="rounded-lg py-2" :class="b.outOfStock > 0 ? 'bg-red-50' : 'bg-slate-50'">
+            <div class="text-base font-extrabold" :class="b.outOfStock > 0 ? 'text-red-700' : 'text-slate-800'">{{ b.outOfStock }}</div>
+            <div class="text-[10px] uppercase tracking-wide" :class="b.outOfStock > 0 ? 'text-red-700' : 'text-slate-500'">Out</div>
+          </div>
+        </div>
+
+        <!-- Today's sales pill -->
+        <div class="flex items-center justify-between bg-indigo-50 rounded-lg px-3 py-2 mb-4">
+          <div class="flex items-center gap-2">
+            <i class="ph ph-receipt text-indigo-600"></i>
+            <span class="text-xs text-slate-500">Today's Sales</span>
+          </div>
+          <div class="text-right">
+            <div class="font-extrabold text-indigo-700 text-sm">{{ fmtPeso(b.todayTotal) }}</div>
+            <div class="text-[10px] text-slate-500">{{ b.todayCount }} tx</div>
+          </div>
+        </div>
+
+        <!-- Primary actions -->
+        <div class="grid grid-cols-2 gap-2 mt-auto">
+          <button @click="viewBranch(b)" class="ps-btn ps-btn-primary justify-center">
+            <i class="ph ph-arrow-right"></i> View Branch
+          </button>
+          <button @click="openCashier(b)" class="ps-btn ps-btn-outline justify-center">
+            <i class="ph ph-cash-register"></i> Open Cashier
+          </button>
+        </div>
+
+        <!-- Secondary admin actions -->
+        <div class="flex gap-2 mt-2 text-xs">
+          <button @click="openEdit(b)" class="text-slate-500 hover:text-blue-600 inline-flex items-center gap-1">
+            <i class="ph ph-pencil-simple"></i> Edit
+          </button>
+          <span class="text-slate-300">·</span>
+          <button @click="removeBranch(b)" class="text-slate-500 hover:text-red-600 inline-flex items-center gap-1">
+            <i class="ph ph-trash"></i> Delete
           </button>
         </div>
       </div>
     </div>
 
-    <!-- ══ Branch Inventory Drawer ═════════════════════════════════════════════ -->
-    <div v-if="selectedBranch" class="drawer-backdrop" @click.self="closeBranch">
-      <div class="drawer">
-        <div class="drawer__header">
-          <div>
-            <span class="drawer__title">{{ selectedBranch.branchName }}</span>
-            <span class="drawer__sub">Branch Inventory</span>
+    <!-- ══ Create / Edit Modal ═════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition name="ps-modal">
+        <div v-if="showForm" class="ps-modal-backdrop" @click.self="closeForm">
+          <div class="ps-modal-card" style="max-width:460px">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title">{{ editId ? 'Edit Branch' : 'New Branch' }}</h3>
+              <button class="ps-modal-close" @click="closeForm"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="ps-modal-body">
+              <div>
+                <label for="b-name" class="ps-label">Branch Name *</label>
+                <input id="b-name" v-model="formName" class="ps-input" placeholder="e.g. Matina Branch" />
+              </div>
+              <div>
+                <label for="b-addr" class="ps-label">Address</label>
+                <input id="b-addr" v-model="formAddr" class="ps-input" placeholder="e.g. MacArthur Hwy" />
+              </div>
+              <div v-if="editId">
+                <label for="b-status" class="ps-label">Status</label>
+                <select id="b-status" v-model="formStatus" class="ps-input">
+                  <option>Active</option>
+                  <option>Inactive</option>
+                </select>
+              </div>
+            </div>
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="closeForm">Cancel</button>
+              <button class="ps-btn ps-btn-primary" :disabled="saving" @click="saveBranch">
+                {{ saving ? 'Saving…' : editId ? 'Save Changes' : 'Create Branch' }}
+              </button>
+            </div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <button class="btn-sm btn-primary" @click="openAddProduct"><i class="ph ph-plus" /> Add Product</button>
-            <button class="modal__close" @click="closeBranch"><i class="ph ph-x" /></button>
-          </div>
         </div>
-
-        <div class="drawer__toolbar">
-          <div class="search-wrap">
-            <i class="ph ph-magnifying-glass" />
-            <input v-model="invSearch" placeholder="Search…" />
-          </div>
-          <label class="toggle-label">
-            <input type="checkbox" v-model="showLowOnly" />
-            Low stock only
-          </label>
-        </div>
-
-        <div v-if="invLoading" class="state-msg"><i class="ph ph-spinner" /> Loading…</div>
-        <div v-else-if="filteredInv.length === 0" class="state-msg">No products tracked in this branch yet.</div>
-
-        <table v-else class="data-table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>On Hand</th>
-              <th>Min Qty</th>
-              <th>Status</th>
-              <th>Location</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in filteredInv" :key="item.inventoryId">
-              <td>{{ item.productName }}</td>
-              <td class="num">{{ item.qtyOnHand }}</td>
-              <td class="num">
-                <template v-if="editingMinQty === item.inventoryId">
-                  <input type="number" v-model="minQtyInput" class="inline-input" min="0" style="width:70px" />
-                  <button class="btn-xs btn-primary" @click="saveMinQty(item)"><i class="ph ph-check" /></button>
-                  <button class="btn-xs btn-outline" @click="editingMinQty = null"><i class="ph ph-x" /></button>
-                </template>
-                <template v-else>
-                  {{ item.minQty }}
-                  <button class="btn-xs btn-ghost" @click="startEditMinQty(item)"><i class="ph ph-pencil-simple" /></button>
-                </template>
-              </td>
-              <td><span :class="stockTagCls(item)">{{ stockLabel(item) }}</span></td>
-              <td>{{ item.location || '—' }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ══ Add Product to Branch Modal ════════════════════════════════════════ -->
-    <div v-if="showAddProduct" class="modal-backdrop" @click.self="showAddProduct = false">
-      <div class="modal">
-        <div class="modal__header">
-          <span>Add Product to {{ selectedBranch?.branchName }}</span>
-          <button class="modal__close" @click="showAddProduct = false"><i class="ph ph-x" /></button>
-        </div>
-        <div class="modal__body">
-          <label class="form-label">Product *</label>
-          <select v-model="apProductId" class="form-control">
-            <option :value="null" disabled>— Select product —</option>
-            <option v-for="p in products" :key="p.productId" :value="p.productId">{{ p.productName }}</option>
-          </select>
-
-          <label class="form-label mt-2">Initial Qty</label>
-          <input type="number" v-model="apInitialQty" class="form-control" min="0" />
-
-          <label class="form-label mt-2">Min Qty (low-stock threshold)</label>
-          <input type="number" v-model="apMinQty" class="form-control" min="0" />
-        </div>
-        <div class="modal__footer">
-          <button class="btn-outline" @click="showAddProduct = false">Cancel</button>
-          <button class="btn-primary" :disabled="apSaving" @click="confirmAddProduct">
-            {{ apSaving ? 'Adding…' : 'Add to Branch' }}
-          </button>
-        </div>
-      </div>
-    </div>
+      </Transition>
+    </Teleport>
 
   </div>
 </template>
-
-<style scoped>
-.inv-page { padding: 24px; max-width: 1100px; margin: 0 auto; }
-
-.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
-.page-title  { font-size: 1.5rem; font-weight: 700; margin: 0; }
-.page-sub    { color: var(--text-secondary, #6B7280); margin: 4px 0 0; font-size: .9rem; }
-
-/* Overview */
-.overview-section { margin-bottom: 28px; }
-.section-label    { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary, #6B7280); margin: 0 0 12px; }
-.overview-grid    { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-.ov-card          { background: var(--card-bg, #fff); border: 1px solid var(--border, #E5E7EB); border-radius: 12px; padding: 16px; cursor: pointer; transition: box-shadow .15s; }
-.ov-card:hover    { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
-.ov-card__name    { font-weight: 700; font-size: 1rem; margin-bottom: 12px; }
-.ov-card__stats   { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-.ov-stat          { display: flex; flex-direction: column; align-items: center; min-width: 48px; }
-.ov-stat__val     { font-size: 1.2rem; font-weight: 700; }
-.ov-stat__lbl     { font-size: .7rem; color: var(--text-secondary, #6B7280); }
-.ov-stat--warn .ov-stat__val   { color: #D97706; }
-.ov-stat--danger .ov-stat__val { color: #DC2626; }
-.ov-card__alert   { font-size: .78rem; color: #D97706; display: flex; align-items: center; gap: 4px; margin-top: 4px; }
-
-/* Branches grid */
-.toolbar        { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.search-wrap    { display: flex; align-items: center; gap: 8px; background: var(--card-bg,#fff); border: 1px solid var(--border,#E5E7EB); border-radius: 8px; padding: 6px 12px; flex: 1; max-width: 340px; }
-.search-wrap i  { color: var(--text-secondary,#6B7280); }
-.search-wrap input { border: none; outline: none; background: transparent; width: 100%; }
-
-.branch-grid     { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-.branch-card     { background: var(--card-bg,#fff); border: 1px solid var(--border,#E5E7EB); border-radius: 12px; padding: 20px; }
-.branch-card__header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
-.branch-card__name   { font-weight: 700; font-size: 1rem; }
-.branch-card__addr   { font-size: .82rem; color: var(--text-secondary,#6B7280); margin-top: 2px; }
-.branch-card__actions { display: flex; gap: 8px; flex-wrap: wrap; }
-
-/* Modal */
-.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-.modal          { background: var(--card-bg,#fff); border-radius: 16px; width: min(480px, 95vw); box-shadow: 0 20px 60px rgba(0,0,0,.2); }
-.modal__header  { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px 0; font-size: 1.1rem; font-weight: 700; }
-.modal__close   { background: none; border: none; cursor: pointer; font-size: 1.2rem; color: var(--text-secondary,#6B7280); }
-.modal__body    { padding: 20px 24px; display: flex; flex-direction: column; gap: 4px; }
-.modal__footer  { padding: 0 24px 24px; display: flex; justify-content: flex-end; gap: 8px; }
-
-/* Drawer */
-.drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 900; display: flex; justify-content: flex-end; }
-.drawer          { background: var(--card-bg,#fff); width: min(760px, 100vw); height: 100%; display: flex; flex-direction: column; box-shadow: -8px 0 40px rgba(0,0,0,.12); overflow: hidden; }
-.drawer__header  { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border,#E5E7EB); }
-.drawer__title   { font-size: 1.15rem; font-weight: 700; display: block; }
-.drawer__sub     { font-size: .8rem; color: var(--text-secondary,#6B7280); }
-.drawer__toolbar { display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--border,#E5E7EB); }
-.toggle-label    { display: flex; align-items: center; gap: 6px; font-size: .88rem; cursor: pointer; white-space: nowrap; }
-
-/* Table */
-.data-table      { width: 100%; border-collapse: collapse; font-size: .88rem; overflow-y: auto; flex: 1; }
-.data-table th   { text-align: left; padding: 10px 16px; background: var(--table-head-bg,#F9FAFB); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border,#E5E7EB); position: sticky; top: 0; }
-.data-table td   { padding: 10px 16px; border-bottom: 1px solid var(--border,#E5E7EB); }
-.num   { text-align: right; font-variant-numeric: tabular-nums; }
-.mono  { font-family: monospace; font-size: .82rem; }
-
-/* Inline input */
-.inline-input { border: 1px solid var(--border,#E5E7EB); border-radius: 6px; padding: 2px 6px; font-size: .85rem; }
-
-/* Tags */
-.ps-tag        { display: inline-flex; align-items: center; border-radius: 99px; padding: 2px 10px; font-size: .75rem; font-weight: 600; }
-.ps-tag-green  { background: #DCFCE7; color: #15803D; }
-.ps-tag-amber  { background: #FEF9C3; color: #92400E; }
-.ps-tag-red    { background: #FEE2E2; color: #991B1B; }
-.ps-tag-grey   { background: #F3F4F6; color: #6B7280; }
-
-/* Buttons */
-.btn-primary        { background: var(--primary,#4F46E5); color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
-.btn-primary:disabled { opacity: .6; cursor: not-allowed; }
-.btn-outline        { background: transparent; border: 1px solid var(--border,#E5E7EB); border-radius: 8px; padding: 9px 18px; font-weight: 600; cursor: pointer; }
-.btn-danger-outline { background: transparent; border: 1px solid #FCA5A5; color: #DC2626; border-radius: 8px; padding: 9px 12px; cursor: pointer; }
-.btn-sm             { padding: 6px 12px; font-size: .85rem; border-radius: 7px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
-.btn-xs             { padding: 3px 7px; font-size: .78rem; border-radius: 5px; cursor: pointer; border: 1px solid var(--border,#E5E7EB); background: transparent; display: inline-flex; align-items: center; gap: 3px; }
-.btn-ghost          { background: transparent; border: none; }
-
-.form-label { font-size: .85rem; font-weight: 600; color: var(--text-secondary,#374151); }
-.form-control { width: 100%; border: 1px solid var(--border,#E5E7EB); border-radius: 8px; padding: 9px 12px; font-size: .9rem; box-sizing: border-box; background: var(--input-bg,#fff); }
-.mt-2 { margin-top: 8px; }
-
-.state-msg { text-align: center; padding: 48px 0; color: var(--text-secondary,#6B7280); font-size: .95rem; }
-</style>
