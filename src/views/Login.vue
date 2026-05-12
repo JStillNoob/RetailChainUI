@@ -65,7 +65,7 @@ const handleGoogleLogin = () => {
       },
       cancel_on_tap_outside: false,
     })
-    google.accounts.id.prompt(notification => {
+    google.accounts.id.prompt((notification: any) => {
       if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
         error.value = 'Google Sign-In was blocked or dismissed. Try again.'
         googleLoading.value = false
