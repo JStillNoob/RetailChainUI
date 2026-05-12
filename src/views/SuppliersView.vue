@@ -53,11 +53,11 @@ const isEdit    = ref(false)
 const editId    = ref<number | null>(null)
 const saving    = ref(false)
 const formErr   = ref('')
-const form      = ref({ name: '', contactFirstName: '', contactLastName: '', email: '', phone: '', street: '', city: '', province: '', zipCode: '', rating: '' })
+const form      = ref({ name: '', contactFirstName: '', contactLastName: '', email: '', phone: '', street: '', city: '', province: '', zipCode: '' })
 
 function openAdd() {
   isEdit.value = false; editId.value = null
-  form.value   = { name: '', contactFirstName: '', contactLastName: '', email: '', phone: '', street: '', city: '', province: '', zipCode: '', rating: '' }
+  form.value   = { name: '', contactFirstName: '', contactLastName: '', email: '', phone: '', street: '', city: '', province: '', zipCode: '' }
   formErr.value = ''; showModal.value = true
 }
 
@@ -66,9 +66,9 @@ async function openEdit(s: any) {
   isEdit.value = true; editId.value = s.supplierId; formErr.value = ''
   try {
     const detail = await api.get(`${BASE.value}/${s.supplierId}`).then(r => r.data)
-    form.value = { name: detail.name ?? '', contactFirstName: detail.contactFirstName ?? '', contactLastName: detail.contactLastName ?? '', email: detail.email ?? '', phone: detail.phone ?? '', street: detail.street ?? '', city: detail.city ?? '', province: detail.province ?? '', zipCode: detail.zipCode ?? '', rating: detail.rating != null ? String(detail.rating) : '' }
+    form.value = { name: detail.name ?? '', contactFirstName: detail.contactFirstName ?? '', contactLastName: detail.contactLastName ?? '', email: detail.email ?? '', phone: detail.phone ?? '', street: detail.street ?? '', city: detail.city ?? '', province: detail.province ?? '', zipCode: detail.zipCode ?? '' }
   } catch {
-    form.value = { ...s, contactFirstName: '', contactLastName: '', street: '', province: '', zipCode: '', rating: s.rating != null ? String(s.rating) : '' }
+    form.value = { name: s.name ?? '', contactFirstName: '', contactLastName: '', email: s.email ?? '', phone: s.phone ?? '', street: '', city: s.city ?? '', province: '', zipCode: '' }
   }
   showModal.value = true
 }
@@ -78,7 +78,7 @@ async function save() {
   if (!form.value.name.trim()) { formErr.value = 'Supplier name is required.'; return }
   saving.value = true
   try {
-    const payload = { ...form.value, rating: form.value.rating ? parseFloat(form.value.rating) : null }
+    const payload = { ...form.value }
     if (isEdit.value) { await api.put(`${BASE.value}/${editId.value}`, payload); toast('Supplier updated.') }
     else              { await api.post(BASE.value, payload); toast('Supplier created.') }
     showModal.value = false; await load()
@@ -94,7 +94,6 @@ async function deactivate(s: any) {
   catch { toast('Failed to deactivate supplier.', 'error') }
 }
 
-const stars = (r: number | null) => { const n = Math.round(r ?? 0); return { filled: n, empty: 5 - n } }
 const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
 </script>
 
@@ -151,7 +150,6 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
             <th>Contact</th>
             <th>Email / Phone</th>
             <th>City</th>
-            <th>Rating</th>
             <th>Status</th>
             <th style="width: 50px"></th>
           </tr>
@@ -172,13 +170,6 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
               <div class="text-slate-400 text-xs">{{ s.phone || '' }}</div>
             </td>
             <td class="text-slate-500">{{ s.city || '—' }}</td>
-            <td>
-              <div class="flex items-center gap-0.5">
-                <i v-for="n in stars(s.rating).filled" :key="'f'+n" class="ph-fill ph-star text-amber-400 text-xs"></i>
-                <i v-for="n in stars(s.rating).empty"  :key="'e'+n" class="ph ph-star text-slate-200 text-xs"></i>
-                <span class="text-xs text-slate-400 ml-1 font-semibold">{{ s.rating != null ? Number(s.rating).toFixed(1) : '—' }}</span>
-              </div>
-            </td>
             <td>
               <span :class="['ps-tag', s.status === 'Active' ? 'ps-tag-green' : 'ps-tag-slate']">
                 {{ s.status }}
@@ -264,10 +255,6 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                 <div>
                   <label class="ps-label">ZIP Code</label>
                   <input v-model="form.zipCode" placeholder="ZIP" class="ps-input" />
-                </div>
-                <div>
-                  <label class="ps-label">Rating (0–5)</label>
-                  <input v-model="form.rating" type="number" placeholder="e.g. 4.5" class="ps-input" />
                 </div>
               </div>
               <div v-if="formErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">

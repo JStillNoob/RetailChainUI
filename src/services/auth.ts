@@ -16,7 +16,11 @@ export interface LoginResponse {
   planName?: string
   planId?: number
   subscriptionEndDate?: string | null
+  subscriptionStatus?: string
+  subscriptionId?: number
   tenantName?: string
+  isEmailVerified?: boolean
+  pendingEmail?: string | null
 }
 
 // Decode JWT payload without a library (base64url → JSON)
@@ -54,8 +58,10 @@ export async function login(email: string, password: string): Promise<LoginRespo
     email:             data.email,
     roleTypeName:      data.roleTypeName,
     onboardingComplete: data.onboardingComplete ?? false,
-    planName:          data.planName,
-    planId:            data.planId
+    planName:           data.planName,
+    planId:             data.planId,
+    subscriptionStatus: data.subscriptionStatus,
+    subscriptionId:     data.subscriptionId
   }))
 
   return data
@@ -75,6 +81,30 @@ export async function getProfile(): Promise<any> {
 // PATCH /api/auth/onboarding-complete
 export async function completeOnboarding(): Promise<void> {
   await api.patch('/auth/onboarding-complete')
+}
+
+// POST /api/auth/google
+export async function googleLogin(idToken: string): Promise<LoginResponse> {
+  const response = await api.post<LoginResponse>('/auth/google', { idToken })
+  const data = response.data
+  localStorage.setItem('token', data.token)
+  if (data.profilePhotoUrl) localStorage.setItem('profilePhoto', data.profilePhotoUrl)
+  if (data.onboardingComplete !== undefined)
+    localStorage.setItem(`onboarding_${data.userId}`, data.onboardingComplete ? '1' : '0')
+  localStorage.setItem('user', JSON.stringify({
+    userId:             data.userId,
+    tenantId:           data.tenantId,
+    firstName:          data.firstName,
+    lastName:           data.lastName,
+    email:              data.email,
+    roleTypeName:       data.roleTypeName,
+    onboardingComplete: data.onboardingComplete ?? false,
+    planName:           data.planName,
+    planId:             data.planId,
+    subscriptionStatus: data.subscriptionStatus,
+    subscriptionId:     data.subscriptionId
+  }))
+  return data
 }
 
 // POST /api/auth/register

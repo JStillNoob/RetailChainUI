@@ -69,6 +69,8 @@ export const navConfig: Record<string, NavGroup[]> = {
             { icon: 'ph-bell',           label: 'Notifications', to: '/dashboard/notifications', id: 'nav-notif' },
           ],
         },
+
+        { icon: 'ph-credit-card', label: 'Billing', to: '/dashboard/billing', id: 'nav-billing' },
       ],
     },
   ],

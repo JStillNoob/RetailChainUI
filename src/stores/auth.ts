@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { login as authLogin, logout as authLogout, getStoredUser, isTokenValid, completeOnboarding as apiCompleteOnboarding, getProfile } from '../services/auth.ts'
+import { login as authLogin, logout as authLogout, getStoredUser, isTokenValid, completeOnboarding as apiCompleteOnboarding, getProfile, googleLogin as authGoogleLogin } from '../services/auth.ts'
 import type { LoginResponse } from '../services/auth.ts'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -18,7 +18,11 @@ export const useAuthStore = defineStore('auth', () => {
   const planName            = ref<string>('No Plan')
   const planId              = ref<number>(0)
   const tenantName          = ref<string>('')
-  const subscriptionEndDate = ref<string | null>(null)
+  const subscriptionEndDate  = ref<string | null>(null)
+  const subscriptionStatus   = ref<string>('None')
+  const subscriptionId       = ref<number>(0)
+  const isEmailVerified      = ref<boolean>(false)
+  const pendingEmail         = ref<string | null>(null)
 
   // Personal profile photo (all users)
   const profilePhoto = ref<string | null>(localStorage.getItem('profilePhoto') || null)
@@ -55,8 +59,12 @@ export const useAuthStore = defineStore('auth', () => {
       const raw = localStorage.getItem(perUserKey)
       onboardingComplete.value = raw === '1'
         || (stored.onboardingComplete as boolean | undefined) === true
-      tenantName.value = (stored.tenantName as string) || ''
-      
+      subscriptionStatus.value = (stored.subscriptionStatus as string) || 'None'
+      subscriptionId.value     = (stored.subscriptionId as number) || 0
+      tenantName.value         = (stored.tenantName as string) || ''
+      isEmailVerified.value    = (stored.isEmailVerified as boolean) ?? false
+      pendingEmail.value       = (stored.pendingEmail as string | null) ?? null
+
       // Update companyName if tenantName is set and not empty
       if (tenantName.value) {
         companyName.value = tenantName.value
@@ -81,7 +89,10 @@ export const useAuthStore = defineStore('auth', () => {
     return (f + l).toUpperCase() || 'U'
   })
   const isSubscriptionExpired = computed(() => {
-    if (!subscriptionEndDate.value || isSuperAdmin.value) return false
+    if (isSuperAdmin.value || !onboardingComplete.value) return false
+    if (subscriptionStatus.value && subscriptionStatus.value !== 'None')
+      return ['Expired', 'Suspended', 'Cancelled'].includes(subscriptionStatus.value)
+    if (!subscriptionEndDate.value) return false
     return new Date(subscriptionEndDate.value) < new Date()
   })
 
@@ -101,9 +112,42 @@ export const useAuthStore = defineStore('auth', () => {
     planName.value            = data.planName || 'No Plan'
     planId.value              = data.planId || 0
     subscriptionEndDate.value = data.subscriptionEndDate ?? null
+    subscriptionStatus.value  = data.subscriptionStatus || 'None'
+    subscriptionId.value      = data.subscriptionId || 0
     profilePhoto.value        = data.profilePhotoUrl || null
     onboardingComplete.value  = data.onboardingComplete ?? false
     tenantName.value          = data.tenantName || ''
+    isEmailVerified.value     = data.isEmailVerified ?? false
+    pendingEmail.value        = data.pendingEmail ?? null
+    if (tenantName.value) {
+      companyName.value = tenantName.value
+      localStorage.setItem('companyName', tenantName.value)
+    }
+    return data
+  }
+
+  async function loginWithGoogle(idToken: string): Promise<LoginResponse> {
+    const data = await authGoogleLogin(idToken)
+    token.value        = data.token
+    userId.value       = data.userId
+    tenantId.value     = data.tenantId
+    firstName.value    = data.firstName
+    middleName.value   = data.middleName || ''
+    lastName.value     = data.lastName
+    phone.value        = data.phone || ''
+    dateOfBirth.value  = data.dateOfBirth || ''
+    email.value        = data.email
+    roleTypeName.value = data.roleTypeName
+    planName.value            = data.planName || 'No Plan'
+    planId.value              = data.planId || 0
+    subscriptionEndDate.value = data.subscriptionEndDate ?? null
+    subscriptionStatus.value  = data.subscriptionStatus || 'None'
+    subscriptionId.value      = data.subscriptionId || 0
+    profilePhoto.value        = data.profilePhotoUrl || null
+    onboardingComplete.value  = data.onboardingComplete ?? false
+    tenantName.value          = data.tenantName || ''
+    isEmailVerified.value     = data.isEmailVerified ?? true
+    pendingEmail.value        = data.pendingEmail ?? null
     if (tenantName.value) {
       companyName.value = tenantName.value
       localStorage.setItem('companyName', tenantName.value)
@@ -142,10 +186,14 @@ export const useAuthStore = defineStore('auth', () => {
       planName.value            = data.planName || 'No Plan'
       planId.value              = data.planId || 0
       subscriptionEndDate.value = data.subscriptionEndDate ?? null
+      subscriptionStatus.value  = data.subscriptionStatus || 'None'
+      subscriptionId.value      = data.subscriptionId || 0
       profilePhoto.value        = data.profilePhotoUrl || null
       onboardingComplete.value  = data.onboardingComplete ?? false
       tenantId.value            = data.tenantId
       tenantName.value          = data.tenantName || ''
+      isEmailVerified.value     = data.isEmailVerified ?? false
+      pendingEmail.value        = data.pendingEmail ?? null
       if (tenantName.value) {
         companyName.value = tenantName.value
         localStorage.setItem('companyName', tenantName.value)
@@ -186,10 +234,14 @@ export const useAuthStore = defineStore('auth', () => {
     planName.value            = 'No Plan'
     planId.value              = 0
     subscriptionEndDate.value = null
+    subscriptionStatus.value  = 'None'
+    subscriptionId.value      = 0
     profilePhoto.value        = null
-    companyLogo.value  = null
-    companyName.value  = ''
-    onboardingComplete.value = false
+    companyLogo.value         = null
+    companyName.value         = ''
+    onboardingComplete.value  = false
+    isEmailVerified.value     = false
+    pendingEmail.value        = null
     // NOTE: systemLogo intentionally NOT cleared on logout — it's a global system setting
     localStorage.removeItem('profilePhoto')
     localStorage.removeItem('companyLogo')
@@ -200,10 +252,11 @@ export const useAuthStore = defineStore('auth', () => {
     // State
     token, userId, tenantId, firstName, middleName, lastName, phone, dateOfBirth, email, roleTypeName,
     profilePhoto, companyLogo, companyName, systemLogo, onboardingComplete,
-    planName, planId, subscriptionEndDate,
+    planName, planId, subscriptionEndDate, subscriptionStatus, subscriptionId,
+    isEmailVerified, pendingEmail,
     // Getters
     isLoggedIn, isSuperAdmin, isTenantAdmin, fullName, initials, isSubscriptionExpired,
     // Actions
-    login, logout, markOnboardingComplete, fetchProfile,
+    login, loginWithGoogle, logout, markOnboardingComplete, fetchProfile,
   }
 })

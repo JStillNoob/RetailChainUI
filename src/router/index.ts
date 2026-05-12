@@ -25,6 +25,7 @@ const ForecastView       = () => import('../views/ForecastView.vue')
 const TenantAuditView    = () => import('../views/TenantAuditView.vue')
 const ReportsDashboard   = () => import('../views/ReportsDashboard.vue')
 const UpgradeView        = () => import('../views/UpgradeView.vue')
+const BillingView        = () => import('../views/BillingView.vue')
 
 // ── Newly built views ────────────────────────────────────────────────────────
 const StoreView            = () => import('../views/StoreView.vue')
@@ -148,6 +149,7 @@ const router = createRouter({
         // ── Shared ───────────────────────────────────────────────────────
         { path: 'settings',       name: 'settings',       component: SettingsView,           meta: { title: 'Settings — RetailChain' } },
         { path: 'upgrade',        name: 'upgrade',        component: UpgradeView,            meta: { title: 'Upgrade Plan — RetailChain' } },
+        { path: 'billing',        name: 'billing',        component: BillingView,            meta: { title: 'Billing — RetailChain' } },
       ],
     },
 
@@ -188,15 +190,17 @@ router.beforeEach((to) => {
     return { name: 'onboarding' }
   }
 
-  // Redirect to upgrade page if subscription has expired (client-side check)
+  // Redirect expired/suspended tenants to billing page
+  const billingAllowed = ['billing', 'upgrade', 'settings', 'notifications']
   if (
     auth.isLoggedIn &&
     !auth.isSuperAdmin &&
+    auth.onboardingComplete &&
     auth.isSubscriptionExpired &&
-    to.name !== 'upgrade' &&
+    !billingAllowed.includes(to.name as string) &&
     to.path.startsWith('/dashboard')
   ) {
-    return { name: 'upgrade' }
+    return { name: 'billing' }
   }
 })
 

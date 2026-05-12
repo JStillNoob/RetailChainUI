@@ -40,6 +40,26 @@ const isActive = (to?: string) => {
   return route.path.startsWith(to)
 }
 
+const daysUntilExpiry = computed(() => {
+  if (!auth.subscriptionEndDate) return null
+  const diff = new Date(auth.subscriptionEndDate).getTime() - Date.now()
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+})
+
+const showExpiryWarning = computed(() =>
+  !auth.isSuperAdmin &&
+  auth.onboardingComplete &&
+  daysUntilExpiry.value !== null &&
+  daysUntilExpiry.value >= 0 &&
+  daysUntilExpiry.value <= 7
+)
+
+const expiryBannerClass = computed(() =>
+  daysUntilExpiry.value !== null && daysUntilExpiry.value <= 3
+    ? 'expiry-banner expiry-banner--urgent'
+    : 'expiry-banner'
+)
+
 const handleLogout = async () => {
   const ok = await confirmDialog('Are you sure you want to sign out?', {
     title: 'Sign Out',
@@ -86,6 +106,17 @@ const handleLogout = async () => {
           <TopbarUserDropdown @logout="handleLogout" />
         </div>
       </header>
+
+      <!-- Subscription expiry warning banner -->
+      <div v-if="showExpiryWarning" :class="expiryBannerClass">
+        <i class="ph ph-warning" />
+        <span>
+          Your subscription expires in
+          <strong>{{ daysUntilExpiry }} day{{ daysUntilExpiry === 1 ? '' : 's' }}</strong>.
+          Renew now to avoid service interruption.
+        </span>
+        <router-link to="/dashboard/billing" class="expiry-banner__link">Manage Billing</router-link>
+      </div>
 
       <!-- Page content -->
       <main class="main-content">
@@ -246,6 +277,38 @@ const handleLogout = async () => {
   font-size: 10px;
   color: #475569; /* darkened for contrast */
   font-weight: 500;
+}
+
+/* ── Expiry warning banner ── */
+.expiry-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 28px;
+  background: #fef3c7;
+  border-bottom: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.expiry-banner--urgent {
+  background: #fee2e2;
+  border-bottom-color: #fca5a5;
+  color: #991b1b;
+}
+.expiry-banner i {
+  font-size: 17px;
+  flex-shrink: 0;
+}
+.expiry-banner__link {
+  margin-left: auto;
+  font-weight: 700;
+  text-decoration: underline;
+  color: inherit;
+  white-space: nowrap;
+}
+.expiry-banner__link:hover {
+  opacity: 0.75;
 }
 
 /* ── Content ── */

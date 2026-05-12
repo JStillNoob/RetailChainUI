@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth.ts'
 import { updateProfile } from '../services/auth.ts'
+import {
+  getEmailStatus, sendVerificationOtp, verifyOtp,
+  requestEmailChange, cancelEmailChange
+} from '../services/accountEmail.ts'
 
 defineOptions({ name: 'SettingsView' })
 
@@ -20,6 +24,102 @@ const dobVal       = ref(auth.dateOfBirth || '')
 
 const canSeeCompany = computed(() => auth.isTenantAdmin || auth.isSuperAdmin)
 const canSeeSystem  = computed(() => auth.isSuperAdmin)
+
+// ── Email verification ─────────────────────────────────────────────────────
+const emailVerified    = ref(auth.isEmailVerified)
+const emailPending     = ref(auth.pendingEmail ?? null)
+const otpInput         = ref('')
+const newEmailInput    = ref('')
+const showOtpField     = ref(false)
+const showChangeForm   = ref(false)
+const emailWorking     = ref(false)
+const cooldown         = ref(0)
+let   cooldownTimer    = 0
+
+function startCooldown(secs: number) {
+  cooldown.value = secs
+  clearInterval(cooldownTimer)
+  if (secs > 0) {
+    cooldownTimer = globalThis.setInterval(() => {
+      cooldown.value = Math.max(0, cooldown.value - 1)
+      if (cooldown.value === 0) clearInterval(cooldownTimer)
+    }, 1000)
+  }
+}
+
+async function loadEmailStatus() {
+  try {
+    const s = await getEmailStatus()
+    emailVerified.value = s.isEmailVerified
+    emailPending.value  = s.pendingEmail
+    auth.isEmailVerified = s.isEmailVerified
+    auth.pendingEmail    = s.pendingEmail
+    startCooldown(s.resendCooldownSec)
+    if (s.pendingEmail) showOtpField.value = true
+  } catch { /* silent */ }
+}
+
+async function doSendOtp() {
+  emailWorking.value = true
+  try {
+    const r = await sendVerificationOtp()
+    showOtpField.value = true
+    showToast(r.message)
+    startCooldown(60)
+  } catch (e: any) { showToast(e.response?.data?.message ?? 'Failed to send code.', true) }
+  finally { emailWorking.value = false }
+}
+
+async function doVerifyOtp() {
+  if (!otpInput.value.trim()) return
+  emailWorking.value = true
+  try {
+    const r = await verifyOtp(otpInput.value.trim())
+    emailVerified.value        = true
+    emailPending.value         = null
+    auth.isEmailVerified       = true
+    auth.pendingEmail          = null
+    auth.email                 = r.email
+    showOtpField.value         = false
+    showChangeForm.value       = false
+    otpInput.value             = ''
+    showToast('Email verified successfully!')
+  } catch (e: any) { showToast(e.response?.data?.message ?? 'Invalid code.', true) }
+  finally { emailWorking.value = false }
+}
+
+async function doRequestChange() {
+  const ne = newEmailInput.value.trim()
+  if (!ne) return
+  emailWorking.value = true
+  try {
+    const r = await requestEmailChange(ne)
+    emailPending.value   = r.pendingEmail
+    auth.pendingEmail    = r.pendingEmail
+    showChangeForm.value = false
+    showOtpField.value   = true
+    newEmailInput.value  = ''
+    showToast(r.message)
+    startCooldown(60)
+  } catch (e: any) { showToast(e.response?.data?.message ?? 'Failed to request change.', true) }
+  finally { emailWorking.value = false }
+}
+
+async function doCancelChange() {
+  emailWorking.value = true
+  try {
+    await cancelEmailChange()
+    emailPending.value   = null
+    auth.pendingEmail    = null
+    showOtpField.value   = false
+    showChangeForm.value = false
+    otpInput.value       = ''
+    showToast('Email change cancelled.')
+  } catch { /* silent */ }
+  finally { emailWorking.value = false }
+}
+
+onMounted(loadEmailStatus)
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5189'
 
@@ -118,12 +218,14 @@ async function changePassword() {
   }, 800)
 }
 
-const toast = ref('')
+const toast      = ref('')
+const toastError = ref(false)
 let toastTimer: ReturnType<typeof setTimeout>
-function showToast(msg: string) {
-  toast.value = msg
+function showToast(msg: string, isError = false) {
+  toast.value      = msg
+  toastError.value = isError
   clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toast.value = '' }, 3000)
+  toastTimer = setTimeout(() => { toast.value = ''; toastError.value = false }, 3000)
 }
 
 const tabs = computed(() => [
@@ -137,8 +239,8 @@ const tabs = computed(() => [
 <template>
   <div class="flex flex-col gap-6">
     <Transition name="toast">
-      <div v-if="toast" class="fixed bottom-7 right-7 bg-slate-900 text-white px-5 py-3 rounded-xl text-sm font-semibold flex items-center gap-2 z-50 shadow-2xl">
-        <i class="ph-fill ph-check-circle text-green-400 text-lg"></i> {{ toast }}
+      <div v-if="toast" :class="['fixed bottom-7 right-7 px-5 py-3 rounded-xl text-sm font-semibold flex items-center gap-2 z-50 shadow-2xl text-white', toastError ? 'bg-red-600' : 'bg-slate-900']">
+        <i :class="['text-lg', toastError ? 'ph-fill ph-warning-circle text-red-200' : 'ph-fill ph-check-circle text-green-400']"></i> {{ toast }}
       </div>
     </Transition>
 
@@ -215,9 +317,76 @@ const tabs = computed(() => [
               <label class="text-xs font-semibold text-slate-700">Date of Birth</label>
               <input v-model="dobVal" type="date" class="ps-input" />
             </div>
-            <div class="col-span-2 flex flex-col gap-1.5">
-              <label class="text-xs font-semibold text-slate-700">Email Address</label>
-              <input :value="auth.email" disabled class="ps-input bg-slate-50 text-slate-400 cursor-not-allowed" />
+            <!-- Email Verification Card -->
+            <div class="col-span-2">
+              <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Email Address</div>
+              <div class="border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+
+                <!-- Current email + status badge -->
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <div class="text-sm font-semibold text-slate-900">{{ auth.email }}</div>
+                    <div v-if="emailPending" class="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
+                      <i class="ph ph-clock"></i> Pending change to <span class="font-semibold">{{ emailPending }}</span>
+                    </div>
+                  </div>
+                  <span v-if="emailVerified" class="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
+                    <i class="ph-fill ph-seal-check"></i> Verified
+                  </span>
+                  <span v-else class="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+                    <i class="ph-fill ph-warning"></i> Not Verified
+                  </span>
+                </div>
+
+                <!-- Send / resend OTP button (show when unverified or has pending change) -->
+                <div v-if="!emailVerified || emailPending" class="flex items-center gap-2">
+                  <button @click="doSendOtp" :disabled="emailWorking || cooldown > 0"
+                    class="ps-btn ps-btn-outline" style="font-size: 12px; padding: 6px 14px;">
+                    <i :class="emailWorking ? 'ph ph-spinner animate-spin' : 'ph ph-envelope'"></i>
+                    {{ cooldown > 0 ? `Resend in ${cooldown}s` : (showOtpField ? 'Resend Code' : 'Send Verification Code') }}
+                  </button>
+                  <button v-if="emailPending" @click="doCancelChange" :disabled="emailWorking"
+                    class="ps-btn ps-btn-outline text-red-500 border-red-200 hover:bg-red-50" style="font-size: 12px; padding: 6px 14px;">
+                    <i class="ph ph-x"></i> Cancel Change
+                  </button>
+                </div>
+
+                <!-- OTP input -->
+                <div v-if="showOtpField" class="flex items-center gap-2">
+                  <input v-model="otpInput" type="text" maxlength="6" placeholder="Enter 6-digit code"
+                    class="ps-input text-center tracking-[0.3em] font-mono text-lg" style="max-width: 180px;" />
+                  <button @click="doVerifyOtp" :disabled="emailWorking || !otpInput.trim()"
+                    class="ps-btn ps-btn-primary" style="font-size: 12px; padding: 6px 16px;">
+                    <i :class="emailWorking ? 'ph ph-spinner animate-spin' : 'ph ph-check'"></i>
+                    Verify
+                  </button>
+                </div>
+
+                <!-- Change email form -->
+                <div v-if="!emailPending" class="border-t border-slate-100 pt-3">
+                  <button v-if="!showChangeForm" @click="showChangeForm = true"
+                    class="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                    <i class="ph ph-pencil-simple"></i> Change Email Address
+                  </button>
+                  <div v-else class="flex flex-col gap-2">
+                    <div class="text-xs font-semibold text-slate-700">New email address</div>
+                    <div class="flex items-center gap-2">
+                      <input v-model="newEmailInput" type="email" placeholder="new@example.com" class="ps-input" style="max-width: 260px;" />
+                      <button @click="doRequestChange" :disabled="emailWorking || !newEmailInput.trim()"
+                        class="ps-btn ps-btn-primary" style="font-size: 12px; padding: 6px 16px;">
+                        <i :class="emailWorking ? 'ph ph-spinner animate-spin' : 'ph ph-paper-plane-tilt'"></i>
+                        Send Code
+                      </button>
+                      <button @click="showChangeForm = false; newEmailInput = ''"
+                        class="ps-btn ps-btn-outline" style="font-size: 12px; padding: 6px 12px;">
+                        <i class="ph ph-x"></i>
+                      </button>
+                    </div>
+                    <p class="text-xs text-slate-400">A verification code will be sent to the new address.</p>
+                  </div>
+                </div>
+
+              </div>
             </div>
             <div class="col-span-2 flex flex-col gap-1.5">
               <label class="text-xs font-semibold text-slate-700">Role</label>

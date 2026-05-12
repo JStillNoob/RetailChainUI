@@ -30,8 +30,26 @@ export const deletePlan = (id: number) =>
 export const getSubscriptions = (status?: string) =>
   api.get('/superadmin/subscriptions', { params: { status } }).then(r => r.data)
 
+export const createSubscription = (data: object) =>
+  api.post('/superadmin/subscriptions', data).then(r => r.data)
+
+export const renewSubscription = (id: number, billingCycle: string) =>
+  api.put(`/superadmin/subscriptions/${id}/renew`, { billingCycle }).then(r => r.data)
+
+export const changeSubscriptionStatus = (id: number, status: string) =>
+  api.put(`/superadmin/subscriptions/${id}/status`, { status }).then(r => r.data)
+
 export const changeSubscriptionPlan = (id: number, planId: number) =>
   api.put(`/superadmin/subscriptions/${id}/plan`, { planId }).then(r => r.data)
+
+export const deleteSubscription = (id: number) =>
+  api.delete(`/superadmin/subscriptions/${id}`).then(r => r.data)
+
+export const getSubscriptionHistory = (id: number) =>
+  api.get(`/superadmin/subscriptions/${id}/history`).then(r => r.data)
+
+export const getPendingPlanChanges = () =>
+  api.get('/superadmin/subscriptions/pending-changes').then(r => r.data)
 
 // ── Store Types ────────────────────────────────────────────────────────────
 export const getStoreTypes = (includeArchived: boolean = false) =>
@@ -61,6 +79,9 @@ export const deleteTemplate = (storeTypeId: number, templateId: number) =>
 // ── Analytics ─────────────────────────────────────────────────────────────
 export const getAnalyticsOverview = () =>
   api.get('/superadmin/analytics/overview').then(r => r.data)
+
+export const getDashboardData = () =>
+  api.get('/superadmin/analytics/dashboard').then(r => r.data)
 
 export const getRevenueData = () =>
   api.get('/superadmin/analytics/revenue').then(r => r.data)
