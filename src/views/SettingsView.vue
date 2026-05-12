@@ -38,7 +38,7 @@ const showOtpField     = ref(false)
 const showChangeForm   = ref(false)
 const emailWorking     = ref(false)
 const cooldown         = ref(0)
-let   cooldownTimer    = 0
+let   cooldownTimer: ReturnType<typeof setInterval> | number = 0
 
 function startCooldown(secs: number) {
   cooldown.value = secs
