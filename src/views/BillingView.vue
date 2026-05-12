@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '../composables/useToast.ts'
 import { useConfirm } from '../composables/useConfirm.ts'
+import { useValidation } from '../composables/useValidation.ts'
 import { useAuthStore } from '../stores/auth.ts'
 import {
   getBillingSubscription, getBillingPlans, getBillingHistory,
@@ -15,6 +16,7 @@ const route  = useRoute()
 const router = useRouter()
 const { toast } = useToast()
 const { confirmDialog } = useConfirm()
+const { parseApiError } = useValidation()
 const auth = useAuthStore()
 
 const sub     = ref<any>(null)
@@ -134,7 +136,7 @@ async function handleRenew() {
       await auth.fetchProfile()
     }
   } catch (e: any) {
-    toast(e.response?.data?.message ?? 'Failed to initiate renewal.', 'error')
+    toast(parseApiError(e), 'error')
   } finally { processing.value = false }
 }
 
@@ -157,7 +159,7 @@ async function handlePlanChange() {
       await load()
     }
   } catch (e: any) {
-    toast(e.response?.data?.message ?? 'Failed to request plan change.', 'error')
+    toast(parseApiError(e), 'error')
   } finally { processing.value = false }
 }
 

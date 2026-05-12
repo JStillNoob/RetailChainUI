@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.ts'
 import { googleSdkLoaded } from 'vue3-google-login'
@@ -8,15 +8,48 @@ import logo from '@/assets/images/logo.png'
 
 defineOptions({ name: 'LoginPage' })
 
-const email       = ref('')
-const password    = ref('')
-const showPwd     = ref(false)
-const error       = ref('')
-const expired     = ref(false)
-const loading     = ref(false)
+const email         = ref('')
+const password      = ref('')
+const showPwd       = ref(false)
+const error         = ref('')
+const expired       = ref(false)
+const loading       = ref(false)
 const googleLoading = ref(false)
-const router      = useRouter()
-const auth        = useAuthStore()
+const router        = useRouter()
+const auth          = useAuthStore()
+
+// Initialise token client once on mount so requestAccessToken()
+// fires directly from a click event (required to avoid popup blockers)
+let tokenClient: any = null
+onMounted(() => {
+  googleSdkLoaded(google => {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID as string,
+      scope: 'openid email profile',
+      callback: async (tokenResponse: any) => {
+        if (tokenResponse.error || !tokenResponse.access_token) {
+          error.value = 'Google sign-in was cancelled.'
+          googleLoading.value = false
+          return
+        }
+        try {
+          const data = await auth.loginWithGoogle(tokenResponse.access_token)
+          if (data.roleTypeName === 'SuperAdmin') router.push('/admin')
+          else router.push('/dashboard')
+        } catch (err: unknown) {
+          const axiosErr = err as { response?: { data?: { message?: string } } }
+          error.value = axiosErr?.response?.data?.message ?? 'Google sign-in failed.'
+        } finally {
+          googleLoading.value = false
+        }
+      },
+      error_callback: () => {
+        error.value = 'Google sign-in was cancelled.'
+        googleLoading.value = false
+      },
+    })
+  })
+})
 
 const handleLogin = async () => {
   if (!email.value || !password.value) {
@@ -46,32 +79,13 @@ const handleLogin = async () => {
 }
 
 const handleGoogleLogin = () => {
+  if (!tokenClient) {
+    error.value = 'Google Sign-In is not ready yet. Please refresh and try again.'
+    return
+  }
   error.value = ''
   googleLoading.value = true
-  googleSdkLoaded(google => {
-    google.accounts.id.initialize({
-      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID as string,
-      callback: async (response: { credential: string }) => {
-        try {
-          const data = await auth.loginWithGoogle(response.credential)
-          if (data.roleTypeName === 'SuperAdmin') router.push('/admin')
-          else router.push('/dashboard')
-        } catch (err: unknown) {
-          const axiosErr = err as { response?: { data?: { message?: string } } }
-          error.value = axiosErr?.response?.data?.message ?? 'Google sign-in failed.'
-        } finally {
-          googleLoading.value = false
-        }
-      },
-      cancel_on_tap_outside: false,
-    })
-    google.accounts.id.prompt((notification: any) => {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        error.value = 'Google Sign-In was blocked or dismissed. Try again.'
-        googleLoading.value = false
-      }
-    })
-  })
+  tokenClient.requestAccessToken({ prompt: 'select_account' })
 }
 </script>
 

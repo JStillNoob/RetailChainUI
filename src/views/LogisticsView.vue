@@ -3,12 +3,14 @@ import { useConfirm } from '../composables/useConfirm'
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
 import { useToast } from '../composables/useToast.ts'
+import { useValidation } from '../composables/useValidation.ts'
 import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'LogisticsView' })
 
 const { confirmDialog } = useConfirm()
 const { toast } = useToast()
+const { parseApiError } = useValidation()
 
 // ── Tabs ───────────────────────────────────────────────────────────────────────
 const activeTab = ref<'deliveries' | 'carriers'>('deliveries')
@@ -87,8 +89,8 @@ async function createDelivery() {
     showCreate.value = false
     createForm.value = { poId: null, scheduledDate: '', carrierId: null, trackingNo: '', notes: '' }
     await loadMeta(); await load()
-  } catch (e: any) {
-    createErr.value = e.response?.data?.message ?? 'Failed to create delivery.'
+  } catch (e) {
+    createErr.value = parseApiError(e)
   } finally { creating.value = false }
 }
 
@@ -124,8 +126,8 @@ async function saveUpdate() {
       proofOfDelivery: updateForm.value.proofOfDelivery || null,
     })
     toast('Delivery updated.'); showUpdate.value = false; await load()
-  } catch (e: any) {
-    updateErr.value = e.response?.data?.message ?? 'Update failed.'
+  } catch (e) {
+    updateErr.value = parseApiError(e)
   } finally { updating.value = false }
 }
 
@@ -147,8 +149,8 @@ async function saveReturn() {
   try {
     await api.post(`/logistics/deliveries/${returnItem.value.deliveryId}/return`, { returnReason: returnReason.value })
     toast('Delivery marked as returned.'); showReturn.value = false; await load()
-  } catch (e: any) {
-    returnErr.value = e.response?.data?.message ?? 'Failed to record return.'
+  } catch (e) {
+    returnErr.value = parseApiError(e)
   } finally { returning.value = false }
 }
 
@@ -204,8 +206,8 @@ async function saveCarrier() {
     showCarrierModal.value = false
     await loadCarriers()
     carriers.value = await api.get('/logistics/carriers').then(r => r.data)
-  } catch (e: any) {
-    carrierErr.value = e.response?.data?.message ?? 'Failed to save carrier.'
+  } catch (e) {
+    carrierErr.value = parseApiError(e)
   } finally { savingCarrier.value = false }
 }
 
@@ -215,7 +217,7 @@ async function deactivateCarrier(c: any) {
     await api.delete(`/logistics/carriers/${c.carrierId}`)
     toast('Carrier deactivated.')
     await loadCarriers()
-  } catch (e: any) { toast(e.response?.data?.message ?? 'Failed.', 'error') }
+  } catch (e: any) { toast(parseApiError(e), 'error') }
 }
 
 function handleTabChange(tab: 'deliveries' | 'carriers') {

@@ -2,11 +2,13 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
 import { useToast } from '../composables/useToast.ts'
+import { useValidation } from '../composables/useValidation.ts'
 import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'InventoryView' })
 
 const { toast } = useToast()
+const { parseApiError } = useValidation()
 
 const items   = ref<any[]>([])
 const loading = ref(true)
@@ -83,7 +85,7 @@ async function saveAdjust() {
     toast(`${adjustForm.value.adjustmentType} recorded. New qty: ${res.data.newQtyOnHand}`)
     showAdjust.value = false; await load()
   } catch (e: any) {
-    adjustErr.value = e.response?.data?.message ?? 'Adjustment failed.'
+    adjustErr.value = parseApiError(e)
   } finally { adjustSaving.value = false }
 }
 

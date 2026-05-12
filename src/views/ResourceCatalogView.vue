@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth.ts'
 import { useToast } from '../composables/useToast.ts'
 import { useConfirm } from '../composables/useConfirm'
+import { useValidation } from '../composables/useValidation.ts'
 import { getResources, getResourceUnits, createResource, updateResource, deleteResource, getUnits, createUnit, deleteUnit } from '../services/tenant.ts'
 import PsPagination from '../components/PsPagination.vue'
 
@@ -24,6 +25,7 @@ interface Unit {
 const auth    = useAuthStore()
 const { toast } = useToast()
 const { confirmDialog } = useConfirm()
+const { parseApiError } = useValidation()
 
 const isAdmin = computed(() => auth.roleTypeName === 'TenantAdmin')
 
@@ -98,7 +100,7 @@ async function save() {
     }
     showModal.value = false; await load()
   } catch (e: any) {
-    formErr.value = e.response?.data?.message ?? 'Save failed.'
+    formErr.value = parseApiError(e)
   } finally { saving.value = false }
 }
 
@@ -110,7 +112,7 @@ async function remove(r: Resource) {
     toast('Resource deleted.')
     await load()
   } catch (e: any) {
-    toast(e.response?.data?.message ?? 'Delete failed.', 'error')
+    toast(parseApiError(e), 'error')
   }
 }
 
@@ -137,7 +139,7 @@ async function addUnit() {
     await loadUnits()
     toast('Unit added.')
   } catch (e: any) {
-    unitErr.value = e.response?.data?.message ?? 'Failed to add unit.'
+    unitErr.value = parseApiError(e)
   } finally { unitSaving.value = false }
 }
 
@@ -148,7 +150,7 @@ async function removeUnit(id: number, name: string) {
     await loadUnits()
     toast('Unit deleted.')
   } catch (e: any) {
-    toast(e.response?.data?.message ?? 'Failed to delete unit.', 'error')
+    toast(parseApiError(e), 'error')
   }
 }
 </script>

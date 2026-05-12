@@ -4,12 +4,14 @@ import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
 import { getBranches } from '../services/tenant.ts'
 import { useToast } from '../composables/useToast.ts'
+import { useValidation } from '../composables/useValidation.ts'
 import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'ProcurementView' })
 
 const { confirmDialog } = useConfirm()
 const { toast } = useToast()
+const { parseApiError } = useValidation()
 
 const orders       = ref<any[]>([])
 const suppliers    = ref<any[]>([])
@@ -103,8 +105,8 @@ async function createPo() {
     poForm.value = { supplierId: null, orderDate: new Date().toISOString().slice(0, 10), expectedDate: '', branchId: null, notes: '' }
     items.value = [{ productId: null, quantity: '', unitCost: '' }]
     await load()
-  } catch (e: any) {
-    createErr.value = e.response?.data?.message ?? 'Failed to create PO.'
+  } catch (e) {
+    createErr.value = parseApiError(e)
   } finally { creating.value = false }
 }
 
@@ -165,8 +167,8 @@ async function savePo() {
     toast('Purchase order updated.')
     showEdit.value = false
     await load()
-  } catch (e: any) {
-    editErr.value = e.response?.data?.message ?? 'Failed to update PO.'
+  } catch (e) {
+    editErr.value = parseApiError(e)
   } finally { editing.value = false }
 }
 
@@ -177,7 +179,7 @@ async function approvePo(po: any) {
     await api.put(`/procurement/purchase-orders/${po.poId}/approve`)
     toast('Purchase order approved.')
     await load()
-  } catch (e: any) { toast(e.response?.data?.message ?? 'Failed to approve PO.', 'error') }
+  } catch (e) { toast(parseApiError(e), 'error') }
 }
 
 // ── Cancel ─────────────────────────────────────────────────────────────────────
@@ -187,7 +189,7 @@ async function cancelPo(po: any) {
     await api.delete(`/procurement/purchase-orders/${po.poId}`)
     toast('Purchase order cancelled.')
     await load()
-  } catch (e: any) { toast(e.response?.data?.message ?? 'Failed to cancel PO.', 'error') }
+  } catch (e) { toast(parseApiError(e), 'error') }
 }
 
 // ── Detail ─────────────────────────────────────────────────────────────────────

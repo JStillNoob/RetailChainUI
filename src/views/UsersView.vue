@@ -3,12 +3,14 @@ import { useConfirm } from '../composables/useConfirm'
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
 import { useToast } from '../composables/useToast.ts'
+import { useValidation } from '../composables/useValidation.ts'
 import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'UsersView' })
 
 const { confirmDialog } = useConfirm()
 const { toast } = useToast()
+const v = useValidation()
 
 const users   = ref<any[]>([])
 const loading = ref(true)
@@ -58,38 +60,61 @@ const isEdit    = ref(false)
 const saving    = ref(false)
 const editId    = ref<number | null>(null)
 const form      = ref({ firstName: '', lastName: '', email: '', password: '', roleTypeName: '' as string, status: 'Active' })
-const formErr   = ref('')
+const fe        = ref({ firstName: '', email: '', password: '', roleTypeName: '' })
+
+function clearErrors() { fe.value = { firstName: '', email: '', password: '', roleTypeName: '' } }
 
 function openAdd() {
   isEdit.value = false; editId.value = null
   form.value   = { firstName: '', lastName: '', email: '', password: '', roleTypeName: '', status: 'Active' }
-  formErr.value = ''; showModal.value = true
+  clearErrors(); showModal.value = true
 }
 
 function openEdit(u: any) {
   isEdit.value = true; editId.value = u.userId
   form.value   = { firstName: u.firstName, lastName: u.lastName, email: u.email, password: '', roleTypeName: u.roleName ?? '', status: u.status }
-  formErr.value = ''; showModal.value = true
+  clearErrors(); showModal.value = true
   openMenuId.value = null
 }
 
 async function save() {
-  formErr.value = ''
-  if (!form.value.firstName.trim() || !form.value.email.trim()) { formErr.value = 'First name and email are required.'; return }
-  if (!isEdit.value && !form.value.password.trim()) { formErr.value = 'Password is required for new users.'; return }
-  if (!form.value.roleTypeName) { formErr.value = 'Please select a role.'; return }
+  clearErrors()
+  fe.value.firstName    = v.required(form.value.firstName, 'First name')
+  fe.value.email        = v.validate(form.value.email, [
+    (val) => v.required(val, 'Email'), v.email
+  ])
+  fe.value.roleTypeName = v.required(form.value.roleTypeName, 'Role')
+  if (!isEdit.value) {
+    fe.value.password   = v.validate(form.value.password, [
+      (val) => v.required(val, 'Password'),
+      v.minLength(8),
+    ])
+  } else if (form.value.password) {
+    fe.value.password   = v.minLength(8)(form.value.password)
+  }
+
+  if (Object.values(fe.value).some(Boolean)) return
+
   saving.value = true
   try {
     if (isEdit.value) {
-      await api.put(`/tenant/users/${editId.value}`, { firstName: form.value.firstName, lastName: form.value.lastName, status: form.value.status, roleTypeName: form.value.roleTypeName, password: form.value.password || undefined })
+      await api.put(`/tenant/users/${editId.value}`, {
+        firstName: form.value.firstName, lastName: form.value.lastName,
+        status: form.value.status, roleTypeName: form.value.roleTypeName,
+        password: form.value.password || undefined,
+      })
       toast('User updated.')
     } else {
-      await api.post('/tenant/users', { firstName: form.value.firstName, lastName: form.value.lastName, email: form.value.email, password: form.value.password, roleTypeName: form.value.roleTypeName })
+      await api.post('/tenant/users', {
+        firstName: form.value.firstName, lastName: form.value.lastName,
+        email: form.value.email, password: form.value.password,
+        roleTypeName: form.value.roleTypeName,
+      })
       toast('User created.')
     }
     showModal.value = false; await load()
-  } catch (e: any) {
-    formErr.value = e.response?.data?.message ?? 'Save failed.'
+  } catch (e) {
+    toast(v.parseApiError(e), 'error')
   } finally { saving.value = false }
 }
 
@@ -228,7 +253,8 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="ps-label">First Name *</label>
-                  <input v-model="form.firstName" placeholder="First name" class="ps-input" />
+                  <input v-model="form.firstName" placeholder="First name" :class="['ps-input', fe.firstName && 'border-red-400']" />
+                  <p v-if="fe.firstName" class="ps-field-error">{{ fe.firstName }}</p>
                 </div>
                 <div>
                   <label class="ps-label">Last Name</label>
@@ -236,18 +262,21 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                 </div>
                 <div v-if="!isEdit">
                   <label class="ps-label">Email *</label>
-                  <input v-model="form.email" type="email" placeholder="user@email.com" class="ps-input" autocomplete="off" />
+                  <input v-model="form.email" type="email" placeholder="user@email.com" :class="['ps-input', fe.email && 'border-red-400']" autocomplete="off" />
+                  <p v-if="fe.email" class="ps-field-error">{{ fe.email }}</p>
                 </div>
                 <div>
                   <label class="ps-label">{{ isEdit ? 'New Password (blank to keep)' : 'Password *' }}</label>
-                  <input v-model="form.password" type="password" placeholder="••••••••" class="ps-input" autocomplete="new-password" />
+                  <input v-model="form.password" type="password" placeholder="••••••••" :class="['ps-input', fe.password && 'border-red-400']" autocomplete="new-password" />
+                  <p v-if="fe.password" class="ps-field-error">{{ fe.password }}</p>
                 </div>
                 <div>
                   <label class="ps-label">Role *</label>
-                  <select v-model="form.roleTypeName" class="ps-input">
+                  <select v-model="form.roleTypeName" :class="['ps-input', fe.roleTypeName && 'border-red-400']">
                     <option value="">— Select Role —</option>
                     <option v-for="r in ROLES" :key="r.value" :value="r.value">{{ r.label }}</option>
                   </select>
+                  <p v-if="fe.roleTypeName" class="ps-field-error">{{ fe.roleTypeName }}</p>
                 </div>
                 <div v-if="isEdit">
                   <label class="ps-label">Status</label>
@@ -256,9 +285,6 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                     <option value="Inactive">Inactive</option>
                   </select>
                 </div>
-              </div>
-              <div v-if="formErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                {{ formErr }}
               </div>
             </div>
             <div class="ps-modal-footer">

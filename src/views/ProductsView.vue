@@ -3,12 +3,16 @@ import { useConfirm } from '../composables/useConfirm'
 import { ref, onMounted, computed } from 'vue'
 import { getProducts, createProduct, deleteProduct, getProductAttrTemplates, saveProductAttrValues, getResources } from '../services/tenant.ts'
 import { useAuthStore } from '../stores/auth.ts'
+import { useToast } from '../composables/useToast.ts'
+import { useValidation } from '../composables/useValidation.ts'
 import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'ProductsView' })
 
 const { confirmDialog } = useConfirm()
 const auth = useAuthStore()
+const { toast } = useToast()
+const { parseApiError } = useValidation()
 
 const products  = ref<any[]>([])
 const loading   = ref(true)
@@ -114,8 +118,8 @@ async function submitProduct() {
 
     showAdd.value = false
     await loadProducts()
-  } catch (err: any) {
-    formErr.value = 'Failed to add product: ' + (err?.response?.data?.message || err.message)
+  } catch (err) {
+    formErr.value = parseApiError(err)
   } finally {
     saving.value = false
   }
@@ -124,8 +128,8 @@ async function submitProduct() {
 async function removeProduct(id: number) {
   openMenuId.value = null
   if (!await confirmDialog('Delete this product?')) return
-  try { await deleteProduct(id) }
-  catch (err: any) { alert('Delete failed: ' + (err?.response?.data?.message || err.message)) }
+  try { await deleteProduct(id); toast('Product deleted.') }
+  catch (err) { toast(parseApiError(err), 'error') }
   await loadProducts()
 }
 

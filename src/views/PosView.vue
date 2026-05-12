@@ -5,11 +5,13 @@ import { useRoute } from 'vue-router'
 import api from '../services/api.ts'
 import { getBranches } from '../services/tenant.ts'
 import { useToast } from '../composables/useToast.ts'
+import { useValidation } from '../composables/useValidation.ts'
 
 defineOptions({ name: 'PosView' })
 
 const { confirmDialog } = useConfirm()
 const { toast } = useToast()
+const { parseApiError } = useValidation()
 const route = useRoute()
 
 // ── Branch selection ─────────────────────────────────────────────────────────
@@ -185,8 +187,8 @@ async function processPayment() {
     customerName.value = ''
     toast('Sale complete.')
     await searchProducts()
-  } catch (e: any) {
-    payErr.value = e.response?.data?.message ?? 'Transaction failed.'
+  } catch (e) {
+    payErr.value = parseApiError(e)
   } finally {
     processing.value = false
   }

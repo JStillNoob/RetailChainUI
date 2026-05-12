@@ -2,11 +2,13 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
 import { useToast } from '../composables/useToast.ts'
+import { useValidation } from '../composables/useValidation.ts'
 import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'ReceivingView' })
 
 const { toast }  = useToast()
+const { parseApiError } = useValidation()
 const deliveries = ref<any[]>([])
 const loading    = ref(true)
 const search     = ref('')
@@ -90,7 +92,7 @@ async function confirmDelivery() {
     showConfirm.value = false
     await load()
   } catch (e: any) {
-    formErr.value = e.response?.data?.message ?? 'Failed to confirm delivery.'
+    formErr.value = parseApiError(e)
   } finally { confirming.value = false }
 }
 

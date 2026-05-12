@@ -4,12 +4,14 @@ import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
 import { useAuthStore } from '../stores/auth.ts'
 import { useToast } from '../composables/useToast.ts'
+import { useValidation } from '../composables/useValidation.ts'
 import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'SuppliersView' })
 
 const { confirmDialog } = useConfirm()
 const { toast } = useToast()
+const v         = useValidation()
 const auth      = useAuthStore()
 
 const BASE = computed(() =>
@@ -52,18 +54,20 @@ const showModal = ref(false)
 const isEdit    = ref(false)
 const editId    = ref<number | null>(null)
 const saving    = ref(false)
-const formErr   = ref('')
 const form      = ref({ name: '', contactFirstName: '', contactLastName: '', email: '', phone: '', street: '', city: '', province: '', zipCode: '' })
+const fe        = ref({ name: '', email: '' })
+
+function clearErrors() { fe.value = { name: '', email: '' } }
 
 function openAdd() {
   isEdit.value = false; editId.value = null
   form.value   = { name: '', contactFirstName: '', contactLastName: '', email: '', phone: '', street: '', city: '', province: '', zipCode: '' }
-  formErr.value = ''; showModal.value = true
+  clearErrors(); showModal.value = true
 }
 
 async function openEdit(s: any) {
   openMenuId.value = null
-  isEdit.value = true; editId.value = s.supplierId; formErr.value = ''
+  isEdit.value = true; editId.value = s.supplierId; clearErrors()
   try {
     const detail = await api.get(`${BASE.value}/${s.supplierId}`).then(r => r.data)
     form.value = { name: detail.name ?? '', contactFirstName: detail.contactFirstName ?? '', contactLastName: detail.contactLastName ?? '', email: detail.email ?? '', phone: detail.phone ?? '', street: detail.street ?? '', city: detail.city ?? '', province: detail.province ?? '', zipCode: detail.zipCode ?? '' }
@@ -74,16 +78,18 @@ async function openEdit(s: any) {
 }
 
 async function save() {
-  formErr.value = ''
-  if (!form.value.name.trim()) { formErr.value = 'Supplier name is required.'; return }
+  clearErrors()
+  fe.value.name  = v.required(form.value.name, 'Supplier name')
+  fe.value.email = v.email(form.value.email)
+  if (Object.values(fe.value).some(Boolean)) return
+
   saving.value = true
   try {
-    const payload = { ...form.value }
-    if (isEdit.value) { await api.put(`${BASE.value}/${editId.value}`, payload); toast('Supplier updated.') }
-    else              { await api.post(BASE.value, payload); toast('Supplier created.') }
+    if (isEdit.value) { await api.put(`${BASE.value}/${editId.value}`, { ...form.value }); toast('Supplier updated.') }
+    else              { await api.post(BASE.value, { ...form.value }); toast('Supplier created.') }
     showModal.value = false; await load()
-  } catch (e: any) {
-    formErr.value = e.response?.data?.message ?? 'Save failed.'
+  } catch (e) {
+    toast(v.parseApiError(e), 'error')
   } finally { saving.value = false }
 }
 
@@ -222,7 +228,8 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
               <div class="grid grid-cols-2 gap-3">
                 <div class="col-span-2">
                   <label class="ps-label">Supplier Name *</label>
-                  <input v-model="form.name" placeholder="Company or supplier name" class="ps-input" />
+                  <input v-model="form.name" placeholder="Company or supplier name" :class="['ps-input', fe.name && 'border-red-400']" />
+                  <p v-if="fe.name" class="ps-field-error">{{ fe.name }}</p>
                 </div>
                 <div>
                   <label class="ps-label">Contact First Name</label>
@@ -234,7 +241,8 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                 </div>
                 <div>
                   <label class="ps-label">Email</label>
-                  <input v-model="form.email" type="email" placeholder="supplier@email.com" class="ps-input" />
+                  <input v-model="form.email" type="email" placeholder="supplier@email.com" :class="['ps-input', fe.email && 'border-red-400']" />
+                  <p v-if="fe.email" class="ps-field-error">{{ fe.email }}</p>
                 </div>
                 <div>
                   <label class="ps-label">Phone</label>
@@ -256,9 +264,6 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                   <label class="ps-label">ZIP Code</label>
                   <input v-model="form.zipCode" placeholder="ZIP" class="ps-input" />
                 </div>
-              </div>
-              <div v-if="formErr" class="px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                {{ formErr }}
               </div>
             </div>
             <div class="ps-modal-footer">

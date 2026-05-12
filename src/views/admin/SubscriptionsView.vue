@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useConfirm } from '../../composables/useConfirm'
 import { useToast } from '../../composables/useToast.ts'
+import { useValidation } from '../../composables/useValidation.ts'
 import { ref, computed, onMounted } from 'vue'
 import {
   getPlans, createPlan, updatePlan, deletePlan,
@@ -13,6 +14,7 @@ defineOptions({ name: 'SubscriptionsView' })
 
 const { confirmDialog } = useConfirm()
 const { toast } = useToast()
+const { parseApiError } = useValidation()
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const plans         = ref<any[]>([])
@@ -107,13 +109,13 @@ async function submitPlan() {
       await createPlan(payload); toast('Plan created.')
     }
     showPlanModal.value = false; await load()
-  } catch (e: any) { toast(e.response?.data?.message ?? 'Failed to save plan.', 'error') }
+  } catch (e: any) { toast(parseApiError(e), 'error') }
 }
 
 async function removePlan(p: any) {
   if (!await confirmDialog(`Delete "${p.planName}"? This cannot be undone.`)) return
   try { await deletePlan(p.planId); toast('Plan deleted.'); await load() }
-  catch (e: any) { toast(e.response?.data?.message ?? 'Cannot delete plan.', 'error') }
+  catch (e: any) { toast(parseApiError(e), 'error') }
 }
 
 // ── Subscription actions ──────────────────────────────────────────────────────
@@ -130,20 +132,20 @@ async function submitCreateSub() {
       status: createSubForm.value.status || null
     })
     toast('Subscription created.'); showCreateSub.value = false; await load()
-  } catch (e: any) { toast(e.response?.data?.message ?? 'Failed to create.', 'error') }
+  } catch (e: any) { toast(parseApiError(e), 'error') }
   finally { creatingSub.value = false }
 }
 
 async function doRenew(s: any) {
   const cycle = await promptCycle(); if (!cycle) return
   try { await renewSubscription(s.subscriptionId, cycle); toast('Renewed.'); await load() }
-  catch (e: any) { toast(e.response?.data?.message ?? 'Failed to renew.', 'error') }
+  catch (e: any) { toast(parseApiError(e), 'error') }
 }
 
 async function doStatus(s: any, status: string) {
   if (!await confirmDialog(`Set status to "${status}" for ${s.tenantName}?`)) return
   try { await changeSubscriptionStatus(s.subscriptionId, status); toast(`Status set to ${status}.`); await load() }
-  catch (e: any) { toast(e.response?.data?.message ?? 'Failed.', 'error') }
+  catch (e: any) { toast(parseApiError(e), 'error') }
 }
 
 async function doDelete(s: any) {
@@ -151,7 +153,7 @@ async function doDelete(s: any) {
     title: 'Delete Subscription', confirmText: 'Delete', confirmColor: 'ps-btn-danger'
   })) return
   try { await deleteSubscription(s.subscriptionId); toast('Subscription deleted.'); await load() }
-  catch (e: any) { toast(e.response?.data?.message ?? 'Failed to delete.', 'error') }
+  catch (e: any) { toast(parseApiError(e), 'error') }
 }
 
 async function viewHistory(s: any) {

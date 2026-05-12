@@ -2,11 +2,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { getProducts, getBranches, transferStock } from '../services/tenant.ts'
 import { useToast } from '../composables/useToast.ts'
+import { useValidation } from '../composables/useValidation.ts'
 import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'StockTransferView' })
 
 const { toast } = useToast()
+const { parseApiError } = useValidation()
 
 interface Product {
   productId:   number
@@ -100,9 +102,8 @@ async function submit() {
     toast('Stock transferred successfully.')
     showModal.value = false
     await load()
-  } catch (e: any) {
-    const d = e?.response?.data
-    formErr.value = d?.message ?? `Transfer failed. (${e?.response?.status ?? 'network error'})`
+  } catch (e) {
+    formErr.value = parseApiError(e)
   } finally {
     saving.value = false
   }

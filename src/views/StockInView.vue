@@ -2,11 +2,13 @@
 import { ref, onMounted, computed } from 'vue'
 import { getProducts, getSuppliers, stockIn } from '../services/tenant.ts'
 import { useToast } from '../composables/useToast.ts'
+import { useValidation } from '../composables/useValidation.ts'
 import PsPagination from '../components/PsPagination.vue'
 
 defineOptions({ name: 'StockInView' })
 
 const { toast } = useToast()
+const { parseApiError } = useValidation()
 
 interface Product {
   productId:   number
@@ -113,9 +115,8 @@ async function submit() {
     toast('Stock added.')
     showAdd.value = false
     await loadProducts()
-  } catch (e: any) {
-    const d = e?.response?.data
-    addErr.value = d?.message ?? d?.title ?? `Failed to add stock. (${e?.response?.status ?? 'network error'})${d?.detail ? ': ' + d.detail : ''}`
+  } catch (e) {
+    addErr.value = parseApiError(e)
   } finally {
     saving.value = false
   }

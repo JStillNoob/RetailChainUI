@@ -84,8 +84,8 @@ export async function completeOnboarding(): Promise<void> {
 }
 
 // POST /api/auth/google
-export async function googleLogin(idToken: string): Promise<LoginResponse> {
-  const response = await api.post<LoginResponse>('/auth/google', { idToken })
+export async function googleLogin(accessToken: string): Promise<LoginResponse> {
+  const response = await api.post<LoginResponse>('/auth/google', { accessToken })
   const data = response.data
   localStorage.setItem('token', data.token)
   if (data.profilePhotoUrl) localStorage.setItem('profilePhoto', data.profilePhotoUrl)

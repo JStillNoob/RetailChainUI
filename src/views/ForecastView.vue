@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useConfirm } from '../composables/useConfirm'
+import { useValidation } from '../composables/useValidation.ts'
 import { ref, computed, onMounted } from 'vue'
 import {
   getForecast,
@@ -20,6 +21,7 @@ defineOptions({ name: 'ForecastView' })
 
 const { confirmDialog } = useConfirm()
 const { toast }         = useToast()
+const { parseApiError } = useValidation()
 const auth              = useAuthStore()
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -164,7 +166,7 @@ async function saveOverride() {
     toast('Forecast overridden.', 'success')
     showOverride.value = false
   } catch (e: any) {
-    overrideErr.value = e.response?.data?.message ?? 'Override failed.'
+    overrideErr.value = parseApiError(e)
   } finally { overriding.value = false }
 }
 
@@ -197,7 +199,7 @@ async function saveCreatePo() {
     showCreatePo.value = false
     await loadAll()
   } catch (e: any) {
-    createPoErr.value = e.response?.data?.message ?? 'Failed to create PO.'
+    createPoErr.value = parseApiError(e)
   } finally { creatingPo.value = false }
 }
 

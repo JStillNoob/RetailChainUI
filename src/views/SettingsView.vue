@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth.ts'
 import { updateProfile } from '../services/auth.ts'
+import { useValidation } from '../composables/useValidation.ts'
 import {
   getEmailStatus, sendVerificationOtp, verifyOtp,
   requestEmailChange, cancelEmailChange
@@ -10,6 +11,7 @@ import {
 defineOptions({ name: 'SettingsView' })
 
 const auth = useAuthStore()
+const { parseApiError } = useValidation()
 
 const activeTab    = ref('account')
 const uploading    = ref<string | null>(null)
@@ -66,7 +68,7 @@ async function doSendOtp() {
     showOtpField.value = true
     showToast(r.message)
     startCooldown(60)
-  } catch (e: any) { showToast(e.response?.data?.message ?? 'Failed to send code.', true) }
+  } catch (e: any) { showToast(parseApiError(e), true) }
   finally { emailWorking.value = false }
 }
 
@@ -84,7 +86,7 @@ async function doVerifyOtp() {
     showChangeForm.value       = false
     otpInput.value             = ''
     showToast('Email verified successfully!')
-  } catch (e: any) { showToast(e.response?.data?.message ?? 'Invalid code.', true) }
+  } catch (e: any) { showToast(parseApiError(e), true) }
   finally { emailWorking.value = false }
 }
 
@@ -101,7 +103,7 @@ async function doRequestChange() {
     newEmailInput.value  = ''
     showToast(r.message)
     startCooldown(60)
-  } catch (e: any) { showToast(e.response?.data?.message ?? 'Failed to request change.', true) }
+  } catch (e: any) { showToast(parseApiError(e), true) }
   finally { emailWorking.value = false }
 }
 
