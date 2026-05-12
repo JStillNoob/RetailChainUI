@@ -5,6 +5,7 @@ import api from '../services/api.ts'
 import { useToast } from '../composables/useToast.ts'
 import { useValidation } from '../composables/useValidation.ts'
 import PsPagination from '../components/PsPagination.vue'
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter.vue'
 
 defineOptions({ name: 'UsersView' })
 
@@ -125,6 +126,40 @@ async function deactivate(u: any) {
   catch { toast('Failed to deactivate user.', 'error') }
 }
 
+// Admin password reset
+const showResetPwd   = ref(false)
+const resetPwdTarget = ref<any>(null)
+const resetPwdVal    = ref('')
+const resetPwdConfirm = ref('')
+const resetPwdSaving = ref(false)
+const resetPwdErr    = ref('')
+
+function openResetPwd(u: any) {
+  openMenuId.value  = null
+  resetPwdTarget.value  = u
+  resetPwdVal.value     = ''
+  resetPwdConfirm.value = ''
+  resetPwdErr.value     = ''
+  showResetPwd.value    = true
+}
+
+const resetPwdMeterRef = ref<any>(null)
+const resetPwdStrong   = computed(() => resetPwdMeterRef.value?.isStrong ?? false)
+
+async function submitResetPwd() {
+  resetPwdErr.value = ''
+  if (!resetPwdStrong.value) { resetPwdErr.value = 'Password does not meet all requirements.'; return }
+  if (resetPwdVal.value !== resetPwdConfirm.value) { resetPwdErr.value = 'Passwords do not match.'; return }
+  resetPwdSaving.value = true
+  try {
+    await api.put(`/tenant/users/${resetPwdTarget.value.userId}/password`, { newPassword: resetPwdVal.value })
+    showResetPwd.value = false
+    toast(`Password reset for ${resetPwdTarget.value.firstName}.`)
+  } catch (e: any) {
+    resetPwdErr.value = v.parseApiError(e)
+  } finally { resetPwdSaving.value = false }
+}
+
 const fmtDate  = (d: string) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
 const initials = (u: any) => ((u.firstName?.[0] ?? '') + (u.lastName?.[0] ?? '')).toUpperCase()
 const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
@@ -218,6 +253,10 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                     class="w-full text-left px-3.5 py-2 text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                     <i class="ph ph-pencil-simple text-slate-400"></i> Edit
                   </button>
+                  <button @click="openResetPwd(u)"
+                    class="w-full text-left px-3.5 py-2 text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                    <i class="ph ph-key text-slate-400"></i> Reset Password
+                  </button>
                   <button v-if="u.status === 'Active'" @click="deactivate(u)"
                     class="w-full text-left px-3.5 py-2 text-red-600 hover:bg-red-50 flex items-center gap-2">
                     <i class="ph ph-x-circle"></i> Deactivate
@@ -292,6 +331,44 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
               <button class="ps-btn ps-btn-primary" :disabled="saving" @click="save">
                 <i v-if="saving" class="ph ph-spinner animate-spin"></i>
                 {{ saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create User' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Reset Password Modal -->
+    <Teleport to="body">
+      <Transition name="ps-modal">
+        <div v-if="showResetPwd" class="ps-modal-backdrop" @click.self="showResetPwd = false">
+          <div class="ps-modal-card" style="max-width:420px">
+            <div class="ps-modal-header">
+              <h3 class="ps-modal-title flex items-center gap-2">
+                <i class="ph-fill ph-key text-blue-500"></i>
+                Reset Password — {{ resetPwdTarget?.firstName }} {{ resetPwdTarget?.lastName }}
+              </h3>
+              <button class="ps-modal-close" @click="showResetPwd = false"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="ps-modal-body flex flex-col gap-4">
+              <div v-if="resetPwdErr" class="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-100 rounded-lg text-red-600 text-sm">
+                <i class="ph-fill ph-warning-circle mt-0.5 flex-shrink-0"></i><span>{{ resetPwdErr }}</span>
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="ps-label">New Password</label>
+                <input v-model="resetPwdVal" type="password" placeholder="New password" class="ps-input" />
+                <PasswordStrengthMeter ref="resetPwdMeterRef" :password="resetPwdVal" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="ps-label">Confirm Password</label>
+                <input v-model="resetPwdConfirm" type="password" placeholder="Repeat password" class="ps-input" />
+              </div>
+            </div>
+            <div class="ps-modal-footer">
+              <button class="ps-btn ps-btn-outline" @click="showResetPwd = false">Cancel</button>
+              <button class="ps-btn ps-btn-primary" :disabled="resetPwdSaving" @click="submitResetPwd">
+                <i :class="resetPwdSaving ? 'ph ph-spinner animate-spin' : 'ph ph-lock-key'"></i>
+                {{ resetPwdSaving ? 'Saving…' : 'Reset Password' }}
               </button>
             </div>
           </div>

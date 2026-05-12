@@ -14,7 +14,7 @@ const state = ref<ConfirmState>({
   title: 'Confirm',
   message: '',
   confirmText: 'Confirm',
-  confirmColor: 'bg-red-600 hover:bg-red-700',
+  confirmColor: 'ps-btn-primary',
   resolve: () => {}
 })
 
@@ -29,7 +29,7 @@ export function useConfirm() {
         title: options?.title || 'Are you sure?',
         message,
         confirmText: options?.confirmText || 'Confirm',
-        confirmColor: options?.confirmColor || 'ps-btn-primary', // Tailwind classes or PS buttons
+        confirmColor: options?.confirmColor || 'ps-btn-primary',
         resolve
       }
     })

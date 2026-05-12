@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.ts'
 import authIllustration from '@/assets/images/Gemini_Generated_Image_tr35wvtr35wvtr35-removebg-preview.png'
 import logo from '@/assets/images/logo.png'
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter.vue'
 
 defineOptions({ name: 'RegisterPage' })
 
@@ -21,22 +22,8 @@ const error = ref('')
 const success = ref('')
 const loading = ref(false)
 
-const passwordScore = computed(() => {
-  const pw = password.value
-  if (!pw) return 0
-  let score = 0
-  if (pw.length >= 8) score++
-  if (/[A-Z]/.test(pw)) score++
-  if (/\d/.test(pw)) score++
-  if (/[^A-Za-z0-9]/.test(pw)) score++
-  return score
-})
-const passwordLabel = computed(
-  () => ['', 'Weak', 'Fair', 'Good', 'Strong'][passwordScore.value] ?? '',
-)
-const passwordColor = computed(
-  () => ['', '#EF4444', '#F97316', '#22C55E', '#3B82F6'][passwordScore.value] ?? '',
-)
+const meterRef = ref<InstanceType<typeof PasswordStrengthMeter> | null>(null)
+const isStrong = computed(() => meterRef.value?.isStrong ?? false)
 
 const handleRegister = async () => {
   error.value = ''
@@ -45,12 +32,12 @@ const handleRegister = async () => {
     error.value = 'Please fill in all required fields.'
     return
   }
-  if (password.value !== confirmPassword.value) {
-    error.value = 'Passwords do not match.'
+  if (!isStrong.value) {
+    error.value = 'Password does not meet all requirements.'
     return
   }
-  if (password.value.length < 8) {
-    error.value = 'Password must be at least 8 characters.'
+  if (password.value !== confirmPassword.value) {
+    error.value = 'Passwords do not match.'
     return
   }
   if (!agreeTerms.value) {
@@ -223,20 +210,7 @@ const handleRegister = async () => {
                   <i :class="showPwd ? 'ph-fill ph-eye-slash' : 'ph-fill ph-eye'"></i>
                 </button>
               </div>
-              <div
-                v-if="password"
-                class="mt-2 flex items-center gap-3 px-1 transition-all duration-300"
-              >
-                <div class="flex-1 h-1.5 rounded-full bg-slate-200 overflow-hidden">
-                  <div
-                    class="h-full rounded-full transition-all duration-500 ease-out"
-                    :style="{ width: (passwordScore / 4) * 100 + '%', background: passwordColor }"
-                  ></div>
-                </div>
-                <span class="text-xs font-bold whitespace-nowrap" :style="{ color: passwordColor }">
-                  {{ passwordLabel }}
-                </span>
-              </div>
+              <PasswordStrengthMeter ref="meterRef" :password="password" />
             </div>
 
             <!-- Confirm password -->

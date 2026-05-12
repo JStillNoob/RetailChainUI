@@ -13,12 +13,14 @@ import {
 import api from '../services/api.ts'
 import { useToast } from '../composables/useToast.ts'
 import { useConfirm } from '../composables/useConfirm'
+import { usePlanRules } from '../composables/usePlanRules.ts'
 
 defineOptions({ name: 'BranchesView' })
 
 const router = useRouter()
 const { confirmDialog } = useConfirm()
 const { toast } = useToast()
+const { branchLimitReached, branchUsageLabel, fetchPlanInfo } = usePlanRules()
 
 // ── Branch list ──────────────────────────────────────────────────────────────
 const branches  = ref<any[]>([])
@@ -29,6 +31,7 @@ const search    = ref('')
 
 async function loadAll() {
   loading.value = true
+  fetchPlanInfo()
   try {
     const [list, ov] = await Promise.all([getBranches(), getBranchStockOverview()])
     branches.value = list
@@ -142,14 +145,33 @@ const kpiTodaySales= computed(() => filtered.value.reduce((s, b) => s + (b.today
     <div class="flex items-start justify-between gap-3 flex-wrap">
       <div>
         <h1 class="text-2xl font-bold text-slate-800">Branches</h1>
-        <p class="text-sm text-slate-500">Select a branch to open its workspace and manage inventory, cashier, sales and staff.</p>
+        <div class="flex items-center gap-2 mt-1">
+          <p class="text-sm text-slate-500">Select a branch to open its workspace and manage inventory, cashier, sales and staff.</p>
+          <span v-if="branchUsageLabel" class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+            :class="branchLimitReached ? 'bg-amber-100 text-amber-700' : 'bg-indigo-50 text-indigo-600'">
+            <i class="ph ph-git-branch"></i> {{ branchUsageLabel }}
+          </span>
+        </div>
       </div>
       <div class="flex gap-2">
         <button @click="loadAll" :disabled="loading" class="ps-btn ps-btn-outline">
           <i class="ph ph-arrows-clockwise" :class="{ 'animate-spin': loading }"></i> Refresh
         </button>
-        <button class="ps-btn ps-btn-primary" @click="openCreate">
+        <button
+          v-if="!branchLimitReached"
+          class="ps-btn ps-btn-primary"
+          @click="openCreate"
+        >
           <i class="ph ph-plus"></i> Add Branch
+        </button>
+        <button
+          v-else
+          class="ps-btn ps-btn-outline"
+          style="opacity:0.7; cursor:not-allowed;"
+          title="Branch limit reached — upgrade your plan to add more branches"
+          @click="router.push('/dashboard/upgrade')"
+        >
+          <i class="ph ph-crown"></i> Upgrade to Add More
         </button>
       </div>
     </div>

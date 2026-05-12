@@ -43,6 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
   function hydrate() {
     const stored = getStoredUser()
     if (stored && isTokenValid()) {
+      token.value        = localStorage.getItem('token')
       userId.value       = stored.userId       as number
       tenantId.value     = stored.tenantId     as number
       firstName.value    = stored.firstName    as string
@@ -257,6 +258,6 @@ export const useAuthStore = defineStore('auth', () => {
     // Getters
     isLoggedIn, isSuperAdmin, isTenantAdmin, fullName, initials, isSubscriptionExpired,
     // Actions
-    login, loginWithGoogle, logout, markOnboardingComplete, fetchProfile,
+    login, loginWithGoogle, logout, markOnboardingComplete, fetchProfile, hydrate,
   }
 })

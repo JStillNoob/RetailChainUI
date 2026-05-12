@@ -74,6 +74,12 @@ const router = createRouter({
       component: Register,
       meta: { title: 'Create Account — RetailChain', guest: true },
     },
+    {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: () => import('../views/ForgotPassword.vue'),
+      meta: { title: 'Forgot Password — RetailChain', guest: true },
+    },
 
     // ── Onboarding (TenantAdmin first login) ─────────────────────────────────
     {
@@ -201,6 +207,16 @@ router.beforeEach((to) => {
     to.path.startsWith('/dashboard')
   ) {
     return { name: 'billing' }
+  }
+
+  // Forecast is Premium-only — redirect non-Premium users to the upgrade page
+  if (
+    to.name === 'forecast' &&
+    auth.isLoggedIn &&
+    !auth.isSuperAdmin &&
+    auth.planName !== 'Premium Plan'
+  ) {
+    return { name: 'upgrade' }
   }
 })
 

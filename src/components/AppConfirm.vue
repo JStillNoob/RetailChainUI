@@ -16,7 +16,7 @@ const { state, handleAction } = useConfirm()
                 @click="handleAction(false)">
           Cancel
         </button>
-        <button :class="['px-5 py-2 rounded-lg font-bold text-white transition-all shadow-sm', state.confirmColor]"
+        <button :class="['ps-btn', state.confirmColor || 'ps-btn-primary']"
                 @click="handleAction(true)">
           {{ state.confirmText }}
         </button>

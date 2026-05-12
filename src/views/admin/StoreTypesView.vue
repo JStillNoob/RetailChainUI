@@ -42,7 +42,7 @@ async function remove(id: number) {
 
 async function archive(id: number, currentStatus: boolean) {
   const action = currentStatus ? 'Restore' : 'Archive'
-  if (!await confirmDialog(`${action} this store type?`, { confirmText: action, confirmColor: currentStatus ? 'bg-orange-500 hover:bg-orange-600' : 'bg-red-600 hover:bg-red-700' })) return
+  if (!await confirmDialog(`${action} this store type?`, { confirmText: action, confirmColor: currentStatus ? 'ps-btn-warning' : 'ps-btn-danger' })) return
   await archiveStoreType(id)
   await load()
 }

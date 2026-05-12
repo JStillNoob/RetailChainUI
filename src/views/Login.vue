@@ -2,21 +2,27 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.ts'
+import { twoFactorVerify } from '../services/auth.ts'
 import { googleSdkLoaded } from 'vue3-google-login'
 import authIllustration from '@/assets/images/Gemini_Generated_Image_tr35wvtr35wvtr35-removebg-preview.png'
 import logo from '@/assets/images/logo.png'
 
 defineOptions({ name: 'LoginPage' })
 
-const email         = ref('')
-const password      = ref('')
-const showPwd       = ref(false)
-const error         = ref('')
-const expired       = ref(false)
-const loading       = ref(false)
-const googleLoading = ref(false)
-const router        = useRouter()
-const auth          = useAuthStore()
+const email           = ref('')
+const password        = ref('')
+const showPwd         = ref(false)
+const error           = ref('')
+const expired         = ref(false)
+const loading         = ref(false)
+const googleLoading   = ref(false)
+const router          = useRouter()
+const auth            = useAuthStore()
+
+// 2FA step
+const requiresTwoFactor = ref(false)
+const twoFactorToken    = ref('')
+const twoFactorCode     = ref('')
 
 // Initialise token client once on mount so requestAccessToken()
 // fires directly from a click event (required to avoid popup blockers)
@@ -61,6 +67,12 @@ const handleLogin = async () => {
   loading.value = true
   try {
     const data = await auth.login(email.value, password.value)
+    // Server signalled that 2FA is required
+    if ((data as any).requiresTwoFactor) {
+      twoFactorToken.value    = (data as any).twoFactorToken
+      requiresTwoFactor.value = true
+      return
+    }
     if (data.roleTypeName === 'SuperAdmin') router.push('/admin')
     else router.push('/dashboard')
   } catch (err: unknown) {
@@ -73,6 +85,23 @@ const handleLogin = async () => {
         axiosErr?.response?.data?.message ||
         'Login failed. Check your credentials or ensure the server is running.'
     }
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleTwoFactor = async () => {
+  if (twoFactorCode.value.length !== 6) { error.value = 'Enter the 6-digit code from your authenticator app.'; return }
+  error.value  = ''
+  loading.value = true
+  try {
+    const data = await twoFactorVerify(twoFactorToken.value, twoFactorCode.value)
+    auth.hydrate()
+    if (data.roleTypeName === 'SuperAdmin') router.push('/admin')
+    else router.push('/dashboard')
+  } catch (err: unknown) {
+    const axiosErr = err as { response?: { data?: { message?: string } } }
+    error.value = axiosErr?.response?.data?.message || 'Invalid code.'
   } finally {
     loading.value = false
   }
@@ -208,10 +237,10 @@ const handleGoogleLogin = () => {
                 <label for="login-password" class="block text-sm font-bold text-slate-800"
                   >Password</label
                 >
-                <a
-                  href="#"
+                <router-link
+                  to="/forgot-password"
                   class="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline transition-colors"
-                  >Forgot password?</a
+                  >Forgot password?</router-link
                 >
               </div>
               <div class="auth-field">
@@ -291,6 +320,46 @@ const handleGoogleLogin = () => {
       </div>
     </main>
   </div>
+
+  <!-- 2FA overlay -->
+  <Teleport to="body">
+    <Transition name="ps-modal">
+      <div v-if="requiresTwoFactor" class="ps-modal-backdrop">
+        <div class="ps-modal-card" style="max-width:400px">
+          <div class="ps-modal-header">
+            <h3 class="ps-modal-title flex items-center gap-2">
+              <i class="ph-fill ph-shield-check text-blue-500"></i> Two-Factor Authentication
+            </h3>
+          </div>
+          <div class="ps-modal-body">
+            <p class="text-sm text-slate-500 mb-4">
+              Enter the 6-digit code from your authenticator app (Google Authenticator, Microsoft Authenticator, or Authy).
+            </p>
+            <div v-if="error" class="mb-3 flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-100 rounded-lg text-red-600 text-sm">
+              <i class="ph-fill ph-warning-circle mt-0.5 flex-shrink-0"></i><span>{{ error }}</span>
+            </div>
+            <input
+              v-model="twoFactorCode"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="000000"
+              autocomplete="one-time-code"
+              @keydown.enter="handleTwoFactor"
+              class="ps-input w-full text-center text-2xl tracking-[0.5em] font-bold"
+            />
+          </div>
+          <div class="ps-modal-footer">
+            <button class="ps-btn ps-btn-outline" @click="requiresTwoFactor = false; twoFactorCode = ''; error = ''">Cancel</button>
+            <button class="ps-btn ps-btn-primary" :disabled="loading" @click="handleTwoFactor">
+              <i :class="loading ? 'ph ph-spinner animate-spin' : 'ph ph-check'"></i>
+              {{ loading ? 'Verifying…' : 'Verify' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>

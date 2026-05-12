@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth.ts'
 import logo from '@/assets/images/logo.png'
+import api from '../services/api.ts'
 
 const router = useRouter()
-const auth = useAuthStore()
 const mobileMenuOpen = ref(false)
 const isScrolled = ref(false)
 
 let observer: IntersectionObserver | null = null
 
 onMounted(() => {
+  fetchPlans()
   observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -91,52 +91,88 @@ const retailTypes = [
   { icon: 'ph-wrench', label: 'Hardware Retailers' },
 ]
 
-const plans = [
-  {
-    name: 'Starter',
-    price: '₱999',
-    period: '/mo',
-    desc: 'Perfect for small single-store businesses.',
-    features: [
-      '1 Store / Tenant',
-      'Up to 500 SKUs',
-      'POS Module',
-      'Basic Inventory',
-      'Email Support',
-    ],
-    popular: false,
-  },
-  {
-    name: 'Growth',
-    price: '₱2,499',
-    period: '/mo',
-    desc: 'For growing retailers managing multiple branches.',
-    features: [
-      '3 Stores / Tenants',
-      'Unlimited SKUs',
-      'POS + Procurement',
-      'Demand Forecasting',
-      'Supplier Management',
-      'Priority Support',
-    ],
-    popular: true,
-  },
-  {
-    name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    desc: 'Tailored for large retail chains and corporations.',
-    features: [
-      'Unlimited Stores',
-      'Full ERP Suite',
-      'Custom Integrations',
-      'Dedicated Account Manager',
-      'SLA Guarantee',
-      '24/7 Support',
-    ],
-    popular: false,
-  },
-]
+// ── Dynamic plan pricing ───────────────────────────────────────────────────────
+interface PlanData {
+  planId: number
+  planName: string
+  price: number
+  billingCycle: string
+  hasInventory: boolean
+  hasCashier: boolean
+  hasSales: boolean
+  hasReports: boolean
+  hasPurchasing: boolean
+  hasForecasting: boolean
+  hasMultiBranch: boolean
+  hasUserManagement: boolean
+  maxProducts: number | null
+  trialDays: number
+  branchLimit: number        // -1 = unlimited
+  branchLimitDisplay: string // "1", "3", "Unlimited"
+  canUseForecast: boolean
+}
+
+const fetchedPlans  = ref<PlanData[]>([])
+const plansLoading  = ref(true)
+const plansError    = ref(false)
+
+// Feature definitions: key matches PlanData field, showIfOff = always list it (locked)
+const FEATURE_DEFS = [
+  { key: 'hasInventory',      label: 'Inventory Management',          showIfOff: false },
+  { key: 'hasPurchasing',     label: 'Purchase Orders / Procurement', showIfOff: false },
+  { key: 'hasCashier',        label: 'POS / Cashiering',             showIfOff: false },
+  { key: 'hasSales',          label: 'Sales History',                showIfOff: false },
+  { key: 'hasReports',        label: 'Analytics & Reports',          showIfOff: false },
+  { key: 'hasForecasting',    label: 'Demand Forecasting',           showIfOff: true  },
+  { key: 'hasUserManagement', label: 'User & Role Management',       showIfOff: false },
+] as const
+
+function branchLimitLabel(limit: number): string {
+  if (limit === -1) return 'Unlimited Branches'
+  if (limit === 1)  return '1 Branch Only'
+  return `Up to ${limit} Branches`
+}
+
+function planFeatureItems(plan: PlanData): { label: string; available: boolean }[] {
+  const items: { label: string; available: boolean }[] = []
+
+  items.push({ label: branchLimitLabel(plan.branchLimit), available: true })
+
+  if (plan.maxProducts != null)
+    items.push({ label: `Up to ${plan.maxProducts.toLocaleString()} Products`, available: true })
+  else
+    items.push({ label: 'Unlimited Products', available: true })
+
+  for (const def of FEATURE_DEFS) {
+    const on = plan[def.key as keyof PlanData] as boolean
+    if (on || def.showIfOff) items.push({ label: def.label, available: on })
+  }
+
+  return items
+}
+
+function fmtPrice(price: number): string {
+  if (price === 0) return 'Free'
+  return '₱' + price.toLocaleString('en-PH')
+}
+
+function planDesc(plan: PlanData): string {
+  if (plan.branchLimit === -1) return 'Full-featured ERP for multi-branch retail chains.'
+  if (plan.branchLimit > 1)   return `Ideal for growing retailers managing up to ${plan.branchLimit} branches.`
+  return 'Perfect for small single-store businesses just getting started.'
+}
+
+async function fetchPlans() {
+  plansLoading.value = true
+  plansError.value   = false
+  try {
+    fetchedPlans.value = await api.get('/public/plans').then(r => r.data)
+  } catch {
+    plansError.value = true
+  } finally {
+    plansLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -505,40 +541,98 @@ const plans = [
           <h2 class="section-title">Simple, Transparent Pricing</h2>
           <p class="section-desc">Start free. Scale as you grow. No hidden fees.</p>
         </div>
-        <div class="pricing-grid">
+
+        <!-- Loading skeletons -->
+        <div v-if="plansLoading" class="pricing-grid">
+          <div v-for="n in 3" :key="n" class="pricing-card card">
+            <div class="card-body">
+              <div class="skel skel-sm mb-3"></div>
+              <div class="skel skel-lg mb-2"></div>
+              <div class="skel skel-md mb-6"></div>
+              <div class="skel skel-sm mb-2"></div>
+              <div class="skel skel-sm mb-2"></div>
+              <div class="skel skel-sm mb-2"></div>
+              <div class="skel skel-sm mb-2"></div>
+              <div class="skel skel-sm mb-8"></div>
+              <div class="skel skel-btn"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error state -->
+        <div v-else-if="plansError" class="pricing-state-box">
+          <div class="pricing-state-icon pricing-state-icon--error">
+            <i class="ph-fill ph-warning-circle"></i>
+          </div>
+          <h3>Unable to load pricing</h3>
+          <p>We couldn't retrieve plan information right now. Please try again.</p>
+          <button class="btn btn-outline" @click="fetchPlans">Retry</button>
+        </div>
+
+        <!-- Empty state -->
+        <div v-else-if="fetchedPlans.length === 0" class="pricing-state-box">
+          <div class="pricing-state-icon pricing-state-icon--empty">
+            <i class="ph-fill ph-tag"></i>
+          </div>
+          <h3>No plans available</h3>
+          <p>Pricing plans are being configured. Please check back soon.</p>
+        </div>
+
+        <!-- Dynamic plan cards -->
+        <div v-else class="pricing-grid">
           <div
-            v-for="(plan, idx) in plans"
-            :key="plan.name"
+            v-for="(plan, idx) in fetchedPlans"
+            :key="plan.planId"
             class="pricing-card card scroll-animate opacity-0 translate-y-12 transition-all duration-500 hover:-translate-y-3 hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer"
-            :class="{ 'pricing-popular ring-2 ring-blue-500 shadow-blue-500/30': plan.popular }"
+            :class="{ 'pricing-popular': idx === 1 }"
             :style="{ transitionDelay: idx * 200 + 'ms' }"
           >
-            <div v-if="plan.popular" class="popular-badge">Most Popular</div>
+            <div v-if="idx === 1" class="popular-badge">Most Popular</div>
             <div class="card-body">
-              <div class="plan-name">{{ plan.name }}</div>
+              <!-- Plan name -->
+              <div class="plan-name">{{ plan.planName.replace(' Plan', '') }}</div>
+
+              <!-- Price -->
               <div class="plan-price">
-                <span class="plan-amount">{{ plan.price }}</span>
-                <span class="plan-period">{{ plan.period }}</span>
+                <span class="plan-amount">{{ fmtPrice(plan.price) }}</span>
+                <span v-if="plan.price > 0" class="plan-period">/{{ plan.billingCycle?.toLowerCase() ?? 'mo' }}</span>
               </div>
-              <p class="plan-desc">{{ plan.desc }}</p>
+
+              <!-- Trial badge -->
+              <div v-if="plan.trialDays > 0" class="trial-badge">
+                <i class="ph ph-gift"></i> {{ plan.trialDays }}-day free trial
+              </div>
+
+              <p class="plan-desc">{{ planDesc(plan) }}</p>
               <hr class="divider" style="margin: 20px 0" />
+
+              <!-- Feature list -->
               <ul class="plan-features">
-                <li v-for="f in plan.features" :key="f">
-                  <i class="ph-fill ph-check-circle"></i>
-                  {{ f }}
+                <li
+                  v-for="feat in planFeatureItems(plan)"
+                  :key="feat.label"
+                  :class="{ 'feature-locked': !feat.available }"
+                >
+                  <i
+                    class="ph-fill"
+                    :class="feat.available ? 'ph-check-circle' : 'ph-lock-simple'"
+                  ></i>
+                  {{ feat.label }}
                 </li>
               </ul>
+
               <button
                 class="btn w-full"
-                :class="plan.popular ? 'btn-primary' : 'btn-outline'"
+                :class="idx === 1 ? 'btn-primary' : 'btn-outline'"
                 style="margin-top: 24px; width: 100%"
-                @click="router.push('/register')"
+                @click="router.push({ path: '/register', query: { planId: plan.planId } })"
               >
-                {{ plan.price === 'Custom' ? 'Contact Sales' : 'Get Started' }}
+                Choose Plan
               </button>
             </div>
           </div>
         </div>
+
       </div>
     </section>
 
@@ -1351,6 +1445,88 @@ const plans = [
   justify-content: space-between;
   padding-top: 20px;
   font-size: var(--text-sm);
+}
+
+/* ===== PRICING — SKELETON ===== */
+.skel {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.4s infinite;
+  border-radius: 6px;
+}
+@keyframes skel-shimmer {
+  0%   { background-position: 200% 0 }
+  100% { background-position: -200% 0 }
+}
+.skel-sm  { height: 12px; width: 40%;  margin-bottom: 8px; }
+.skel-md  { height: 14px; width: 65%;  margin-bottom: 8px; }
+.skel-lg  { height: 40px; width: 55%;  margin-bottom: 8px; }
+.skel-btn { height: 44px; width: 100%; border-radius: 10px; }
+
+/* ===== PRICING — STATE BOXES ===== */
+.pricing-state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 64px 24px;
+  gap: 12px;
+}
+.pricing-state-box h3 {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-brand-dark);
+  margin: 0;
+}
+.pricing-state-box p {
+  font-size: var(--text-sm);
+  color: var(--color-brand-muted);
+  margin: 0;
+  max-width: 320px;
+}
+.pricing-state-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  margin-bottom: 4px;
+}
+.pricing-state-icon--error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.pricing-state-icon--empty {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* ===== PRICING — TRIAL BADGE ===== */
+.trial-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  background: #dcfce7;
+  color: #14532d;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--border-radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* ===== PRICING — LOCKED FEATURE ===== */
+.feature-locked {
+  opacity: 0.42;
+  text-decoration: line-through;
+  text-decoration-color: currentColor;
+}
+.feature-locked i {
+  color: #94a3b8 !important;
 }
 
 /* ===== RESPONSIVE ===== */

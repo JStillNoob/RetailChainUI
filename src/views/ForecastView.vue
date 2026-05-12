@@ -37,9 +37,7 @@ const reorderStatus = ref('Pending')
 const selectedProduct = ref<{ id: number; name: string } | null>(null)
 const showChart    = ref(false)
 
-const isPlanRestricted = computed(() =>
-  auth.planName === 'Starter Plan' || auth.planName === 'No Plan'
-)
+const isPlanRestricted = computed(() => auth.planName !== 'Premium Plan')
 
 // ── Formatters ─────────────────────────────────────────────────────────────────
 const fmtDate   = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -232,7 +230,7 @@ const stockBarColor = (current: number, reorder: number) => {
         </div>
         <div>
           <h2 class="text-xl font-bold text-slate-800 mb-1">Premium Feature</h2>
-          <p class="text-sm text-slate-500">Demand Forecasting and Reorder Recommendations are available on <strong>Standard</strong> and <strong>Premium</strong> plans.</p>
+          <p class="text-sm text-slate-500">Demand Forecasting and Reorder Recommendations are available on the <strong>Premium Plan</strong> only.</p>
         </div>
         <router-link to="/dashboard/upgrade" class="ps-btn ps-btn-primary w-full justify-center">
           <i class="ph ph-arrow-circle-up"></i> Upgrade Plan

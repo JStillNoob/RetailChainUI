@@ -92,3 +92,7 @@ export const deleteResource = (id: number) =>
 // ── Suppliers ────────────────────────────────────────────────────────────────
 export const getSuppliers = () =>
   api.get('/tenant/suppliers').then(r => r.data)
+
+// ── Plan Info ─────────────────────────────────────────────────────────────────
+export const getPlanInfo = () =>
+  api.get('/tenant/plan-info').then(r => r.data)

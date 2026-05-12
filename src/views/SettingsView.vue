@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import QRCode from 'qrcode'
 import { useAuthStore } from '../stores/auth.ts'
-import { updateProfile } from '../services/auth.ts'
+import { updateProfile, getSecurityStatus, changePassword as apiChangePassword, twoFactorSetup, twoFactorEnable, twoFactorDisable } from '../services/auth.ts'
 import { useValidation } from '../composables/useValidation.ts'
 import {
   getEmailStatus, sendVerificationOtp, verifyOtp,
   requestEmailChange, cancelEmailChange
 } from '../services/accountEmail.ts'
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter.vue'
 
 defineOptions({ name: 'SettingsView' })
 
@@ -121,7 +123,7 @@ async function doCancelChange() {
   finally { emailWorking.value = false }
 }
 
-onMounted(loadEmailStatus)
+onMounted(() => { loadEmailStatus(); loadSecurityStatus() })
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5189'
 
@@ -207,18 +209,96 @@ function saveCompany() {
   }, 800)
 }
 
+// ── Security / 2FA ────────────────────────────────────────────────────────
+const secIsStrong       = ref(false)
+const secTfaEnabled     = ref(false)
+const secPasswordDate   = ref<string | null>(null)
+const secLoading        = ref(false)
+const pwMeterRef        = ref<InstanceType<typeof PasswordStrengthMeter> | null>(null)
+const pwIsStrong        = computed(() => pwMeterRef.value?.isStrong ?? false)
+
+// 2FA setup state
+const tfaStep           = ref<'idle' | 'scanning' | 'confirming'>('idle')
+const tfaSecret         = ref('')
+const tfaQrUri          = ref('')
+const tfaCode           = ref('')
+const tfaDisableCode    = ref('')
+const tfaWorking        = ref(false)
+
+async function loadSecurityStatus() {
+  try {
+    const s = await getSecurityStatus()
+    secIsStrong.value     = s.isPasswordStrong
+    secTfaEnabled.value   = s.twoFactorEnabled
+    secPasswordDate.value = s.passwordChangedAt ?? null
+  } catch { /* silent */ }
+}
+
 async function changePassword() {
   if (passwordForm.value.new !== passwordForm.value.confirm) {
-    alert('New passwords do not match')
+    showToast('New passwords do not match.', true)
     return
   }
-  saving.value = true
-  setTimeout(() => {
-    saving.value = false
+  if (!pwIsStrong.value) {
+    showToast('Password does not meet all requirements.', true)
+    return
+  }
+  secLoading.value = true
+  try {
+    await apiChangePassword(passwordForm.value.current, passwordForm.value.new)
     passwordForm.value = { current: '', new: '', confirm: '' }
+    secIsStrong.value  = true
     showToast('Password updated successfully!')
-  }, 800)
+  } catch (e: any) {
+    showToast(parseApiError(e), true)
+  } finally { secLoading.value = false }
 }
+
+async function startTfaSetup() {
+  tfaWorking.value = true
+  try {
+    const res   = await twoFactorSetup()
+    tfaSecret.value = res.secret
+    tfaQrUri.value  = res.otpauthUri
+    tfaStep.value   = 'scanning'
+  } catch (e: any) {
+    showToast(parseApiError(e), true)
+  } finally { tfaWorking.value = false }
+}
+
+async function confirmTfaEnable() {
+  if (!tfaCode.value.trim()) return
+  tfaWorking.value = true
+  try {
+    await twoFactorEnable(tfaCode.value.trim())
+    secTfaEnabled.value = true
+    tfaStep.value       = 'idle'
+    tfaCode.value       = ''
+    showToast('Two-factor authentication enabled!')
+  } catch (e: any) {
+    showToast(parseApiError(e), true)
+  } finally { tfaWorking.value = false }
+}
+
+async function disableTfa() {
+  if (!tfaDisableCode.value.trim()) return
+  tfaWorking.value = true
+  try {
+    await twoFactorDisable(tfaDisableCode.value.trim())
+    secTfaEnabled.value  = false
+    tfaDisableCode.value = ''
+    showToast('Two-factor authentication disabled.')
+  } catch (e: any) {
+    showToast(parseApiError(e), true)
+  } finally { tfaWorking.value = false }
+}
+
+const tfaQrDataUrl = ref('')
+
+watch(tfaQrUri, async (uri) => {
+  if (!uri) { tfaQrDataUrl.value = ''; return }
+  tfaQrDataUrl.value = await QRCode.toDataURL(uri, { width: 200, margin: 1 })
+})
 
 const toast      = ref('')
 const toastError = ref(false)
@@ -448,9 +528,25 @@ const tabs = computed(() => [
         <!-- Security -->
         <div v-else-if="activeTab === 'security'">
           <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2 mb-6">
-            <i class="ph-fill ph-lock-key text-blue-500"></i> Security &amp; Password
+            <i class="ph-fill ph-lock-key text-blue-500"></i> Security
           </h2>
 
+          <!-- Password status banner -->
+          <div :class="['flex items-center gap-3 rounded-xl px-4 py-3 mb-6 border', secIsStrong ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200']">
+            <i :class="['text-xl', secIsStrong ? 'ph-fill ph-shield-check text-green-500' : 'ph-fill ph-warning text-amber-500']"></i>
+            <div class="flex-1">
+              <div :class="['text-sm font-bold', secIsStrong ? 'text-green-800' : 'text-amber-800']">
+                {{ secIsStrong ? 'Strong Password' : 'Password needs improvement' }}
+              </div>
+              <div class="text-xs mt-0.5" :class="secIsStrong ? 'text-green-600' : 'text-amber-600'">
+                {{ secIsStrong
+                  ? (secPasswordDate ? `Last changed ${secPasswordDate}` : 'Your password meets all security requirements.')
+                  : 'Update your password below to meet the current policy.' }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Change password -->
           <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Change Password</div>
           <div class="flex flex-col gap-4 max-w-md mb-6">
             <div class="flex flex-col gap-1.5">
@@ -459,19 +555,90 @@ const tabs = computed(() => [
             </div>
             <div class="flex flex-col gap-1.5">
               <label class="text-xs font-semibold text-slate-700">New Password</label>
-              <input v-model="passwordForm.new" type="password" placeholder="Min. 8 characters" class="ps-input" />
+              <input v-model="passwordForm.new" type="password" placeholder="Min. 7 characters" class="ps-input" />
+              <PasswordStrengthMeter ref="pwMeterRef" :password="passwordForm.new" />
             </div>
             <div class="flex flex-col gap-1.5">
               <label class="text-xs font-semibold text-slate-700">Confirm New Password</label>
               <input v-model="passwordForm.confirm" type="password" placeholder="Repeat password" class="ps-input" />
             </div>
+            <div class="flex justify-end">
+              <button @click="changePassword" :disabled="secLoading" class="ps-btn ps-btn-primary">
+                <i :class="secLoading ? 'ph ph-spinner animate-spin' : 'ph ph-lock-key'"></i>
+                {{ secLoading ? 'Updating…' : 'Update Password' }}
+              </button>
+            </div>
           </div>
 
-          <div class="border-t border-slate-100 pt-4 flex justify-end">
-            <button @click="changePassword" :disabled="saving" class="ps-btn ps-btn-primary">
-              <i :class="saving ? 'ph ph-spinner animate-spin' : 'ph ph-lock-key'"></i>
-              {{ saving ? 'Updating…' : 'Update Password' }}
-            </button>
+          <!-- 2FA section -->
+          <div class="border-t border-slate-100 pt-6">
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">Two-Factor Authentication</div>
+
+            <!-- 2FA enabled state -->
+            <template v-if="secTfaEnabled">
+              <div class="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+                <i class="ph-fill ph-shield-check text-green-500 text-xl mt-0.5"></i>
+                <div>
+                  <div class="text-sm font-bold text-green-800">2FA is enabled</div>
+                  <div class="text-xs text-green-700 mt-0.5">Your account is protected with an authenticator app.</div>
+                </div>
+              </div>
+              <div class="flex flex-col gap-2 max-w-xs">
+                <label class="text-xs font-semibold text-slate-700">Enter authenticator code to disable</label>
+                <div class="flex gap-2">
+                  <input v-model="tfaDisableCode" type="text" inputmode="numeric" maxlength="6"
+                    placeholder="000000" class="ps-input flex-1 text-center tracking-[0.4em] font-bold text-lg" />
+                  <button @click="disableTfa" :disabled="tfaWorking || !tfaDisableCode.trim()"
+                    class="ps-btn ps-btn-danger" style="padding: 8px 14px;">
+                    <i :class="tfaWorking ? 'ph ph-spinner animate-spin' : 'ph ph-x'"></i>
+                    Disable
+                  </button>
+                </div>
+              </div>
+            </template>
+
+            <!-- 2FA idle (not enabled) -->
+            <template v-else-if="tfaStep === 'idle'">
+              <div class="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+                <i class="ph ph-shield text-slate-400 text-xl mt-0.5"></i>
+                <div>
+                  <div class="text-sm font-bold text-slate-700">2FA is not enabled</div>
+                  <div class="text-xs text-slate-500 mt-0.5">Add an extra layer of security using Google Authenticator, Microsoft Authenticator, or Authy.</div>
+                </div>
+              </div>
+              <button @click="startTfaSetup" :disabled="tfaWorking" class="ps-btn ps-btn-primary">
+                <i :class="tfaWorking ? 'ph ph-spinner animate-spin' : 'ph ph-shield-plus'"></i>
+                {{ tfaWorking ? 'Setting up…' : 'Set Up Two-Factor Authentication' }}
+              </button>
+            </template>
+
+            <!-- 2FA scanning -->
+            <template v-else-if="tfaStep === 'scanning'">
+              <div class="flex flex-col gap-4 max-w-sm">
+                <p class="text-sm text-slate-600">Scan this QR code with your authenticator app, then enter the 6-digit code to confirm.</p>
+                <div class="flex justify-center">
+                  <img :src="tfaQrDataUrl" alt="QR Code" class="w-48 h-48 rounded-xl border border-slate-200 bg-white p-2" />
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2">
+                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Manual entry key</div>
+                  <div class="font-mono text-sm text-slate-800 break-all select-all">{{ tfaSecret }}</div>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-xs font-semibold text-slate-700">Enter code from app</label>
+                  <div class="flex gap-2">
+                    <input v-model="tfaCode" type="text" inputmode="numeric" maxlength="6"
+                      placeholder="000000" @keydown.enter="confirmTfaEnable"
+                      class="ps-input flex-1 text-center tracking-[0.4em] font-bold text-lg" />
+                    <button @click="confirmTfaEnable" :disabled="tfaWorking || !tfaCode.trim()"
+                      class="ps-btn ps-btn-primary" style="padding: 8px 16px;">
+                      <i :class="tfaWorking ? 'ph ph-spinner animate-spin' : 'ph ph-check'"></i>
+                      Verify
+                    </button>
+                  </div>
+                </div>
+                <button @click="tfaStep = 'idle'; tfaCode = ''" class="text-xs text-slate-400 hover:text-slate-600 self-start">Cancel setup</button>
+              </div>
+            </template>
           </div>
         </div>
 

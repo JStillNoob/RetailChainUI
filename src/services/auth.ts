@@ -135,6 +135,78 @@ export async function subscribeToPlan(planId: number, billingCycle: string): Pro
   return res.data
 }
 
+// GET /api/auth/security-status
+export async function getSecurityStatus(): Promise<{ isPasswordStrong: boolean; twoFactorEnabled: boolean; passwordChangedAt?: string }> {
+  const res = await api.get('/auth/security-status')
+  return res.data
+}
+
+// POST /api/auth/change-password
+export async function changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+  const res = await api.post('/auth/change-password', { currentPassword, newPassword })
+  return res.data
+}
+
+// POST /api/auth/forgot-password
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  const res = await api.post('/auth/forgot-password', { email })
+  return res.data
+}
+
+// POST /api/auth/verify-reset-otp
+export async function verifyResetOtp(email: string, otp: string): Promise<{ resetToken: string }> {
+  const res = await api.post('/auth/verify-reset-otp', { email, otp })
+  return res.data
+}
+
+// POST /api/auth/reset-password
+export async function resetPassword(resetToken: string, newPassword: string): Promise<{ message: string }> {
+  const res = await api.post('/auth/reset-password', { resetToken, newPassword })
+  return res.data
+}
+
+// GET /api/auth/2fa/setup
+export async function twoFactorSetup(): Promise<{ secret: string; otpauthUri: string }> {
+  const res = await api.get('/auth/2fa/setup')
+  return res.data
+}
+
+// POST /api/auth/2fa/enable
+export async function twoFactorEnable(code: string): Promise<{ message: string }> {
+  const res = await api.post('/auth/2fa/enable', { code })
+  return res.data
+}
+
+// POST /api/auth/2fa/disable
+export async function twoFactorDisable(code: string): Promise<{ message: string }> {
+  const res = await api.post('/auth/2fa/disable', { code })
+  return res.data
+}
+
+// POST /api/auth/2fa/verify
+export async function twoFactorVerify(twoFactorToken: string, code: string): Promise<LoginResponse> {
+  const res = await api.post<LoginResponse>('/auth/2fa/verify', { twoFactorToken, code })
+  const data = res.data
+  localStorage.setItem('token', data.token)
+  if (data.profilePhotoUrl) localStorage.setItem('profilePhoto', data.profilePhotoUrl)
+  if (data.onboardingComplete !== undefined)
+    localStorage.setItem(`onboarding_${data.userId}`, data.onboardingComplete ? '1' : '0')
+  localStorage.setItem('user', JSON.stringify({
+    userId:             data.userId,
+    tenantId:           data.tenantId,
+    firstName:          data.firstName,
+    lastName:           data.lastName,
+    email:              data.email,
+    roleTypeName:       data.roleTypeName,
+    onboardingComplete: data.onboardingComplete ?? false,
+    planName:           data.planName,
+    planId:             data.planId,
+    subscriptionStatus: data.subscriptionStatus,
+    subscriptionId:     data.subscriptionId
+  }))
+  return data
+}
+
 // Logout — clear all stored data
 export function logout(): void {
   localStorage.removeItem('token')

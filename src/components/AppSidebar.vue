@@ -12,6 +12,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.ts'
 import { navConfig, defaultNavConfig } from '../config/navConfig.ts'
 import type { NavGroup, NavItem } from '../config/navConfig.ts'
+import { usePlanRules } from '../composables/usePlanRules.ts'
 
 defineOptions({ name: 'AppSidebar' })
 
@@ -38,6 +39,16 @@ const emit = defineEmits<{
 const route  = useRoute()
 const router = useRouter()
 const auth   = useAuthStore()
+const { canUseForecast, fetchPlanInfo } = usePlanRules()
+
+// Fetch plan info for TenantAdmin/WarehouseStaff (roles that see Forecast)
+if (auth.roleTypeName === 'TenantAdmin' || auth.roleTypeName === 'WarehouseStaff') {
+  fetchPlanInfo()
+}
+
+const isForecastLocked = computed(() =>
+  (auth.roleTypeName === 'TenantAdmin' || auth.roleTypeName === 'WarehouseStaff') && !canUseForecast.value
+)
 
 // ── Role-based navigation ─────────────────────────────────────────────────────
 const navGroups = computed<NavGroup[]>(() =>
@@ -220,20 +231,35 @@ const handleUpgrade = () => {
               :id="`${item.id}-children`"
               class="nav-children"
             >
-              <router-link
-                v-for="child in item.children"
-                :key="child.id"
-                :to="child.to ?? '/'"
-                :id="child.id"
-                class="nav-item nav-item--child"
-                :class="{ 'nav-item--active': isActive(child.to) }"
-                :aria-label="child.label"
-                :aria-current="isActive(child.to) ? 'page' : undefined"
-                @click="closeMobile"
-              >
-                <i :class="`ph-fill ${child.icon}`" class="nav-item__icon" aria-hidden="true" />
-                <span class="nav-item__label">{{ child.label }}</span>
-              </router-link>
+              <template v-for="child in item.children" :key="child.id">
+                <!-- Locked nav item (Forecast on non-Premium plans) -->
+                <div
+                  v-if="child.id === 'nav-forecast' && isForecastLocked"
+                  :id="child.id"
+                  class="nav-item nav-item--child nav-item--locked"
+                  :aria-label="`${child.label} — Premium only`"
+                  @click="router.push('/dashboard/upgrade')"
+                >
+                  <i :class="`ph-fill ${child.icon}`" class="nav-item__icon" aria-hidden="true" />
+                  <span class="nav-item__label">{{ child.label }}</span>
+                  <span class="nav-lock-badge"><i class="ph ph-crown"></i> Premium</span>
+                </div>
+
+                <!-- Normal nav item -->
+                <router-link
+                  v-else
+                  :to="child.to ?? '/'"
+                  :id="child.id"
+                  class="nav-item nav-item--child"
+                  :class="{ 'nav-item--active': isActive(child.to) }"
+                  :aria-label="child.label"
+                  :aria-current="isActive(child.to) ? 'page' : undefined"
+                  @click="closeMobile"
+                >
+                  <i :class="`ph-fill ${child.icon}`" class="nav-item__icon" aria-hidden="true" />
+                  <span class="nav-item__label">{{ child.label }}</span>
+                </router-link>
+              </template>
             </div>
           </template>
 
@@ -553,6 +579,30 @@ const handleUpgrade = () => {
   margin: 2px auto;
   border-radius: 12px;
   gap: 0;
+}
+
+/* ── Locked nav item (Premium-only features) ── */
+.nav-item--locked {
+  opacity: 0.65;
+  cursor: pointer;
+}
+.nav-item--locked:hover {
+  opacity: 0.85;
+}
+.nav-lock-badge {
+  flex-shrink: 0;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #a855f7, #6366f1);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
 }
 
 /* ── Premium Ad ── */
