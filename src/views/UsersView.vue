@@ -13,9 +13,10 @@ const { confirmDialog } = useConfirm()
 const { toast } = useToast()
 const v = useValidation()
 
-const users   = ref<any[]>([])
-const loading = ref(true)
-const search  = ref('')
+const users    = ref<any[]>([])
+const branches = ref<{ branchId: number; branchName: string }[]>([])
+const loading  = ref(true)
+const search   = ref('')
 const openMenuId = ref<number | null>(null)
 
 // Static role list — matches TenantRoles.Valid in the backend
@@ -36,7 +37,16 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(load)
+
+async function loadBranches() {
+  try {
+    branches.value = await api.get('/tenant/branches').then(r => r.data)
+  } catch {
+    branches.value = []
+  }
+}
+
+onMounted(() => { load(); loadBranches() })
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase()
@@ -60,20 +70,20 @@ const showModal = ref(false)
 const isEdit    = ref(false)
 const saving    = ref(false)
 const editId    = ref<number | null>(null)
-const form      = ref({ firstName: '', lastName: '', email: '', password: '', roleTypeName: '' as string, status: 'Active' })
+const form      = ref({ firstName: '', lastName: '', email: '', password: '', roleTypeName: '' as string, status: 'Active', branchId: null as number | null })
 const fe        = ref({ firstName: '', email: '', password: '', roleTypeName: '' })
 
 function clearErrors() { fe.value = { firstName: '', email: '', password: '', roleTypeName: '' } }
 
 function openAdd() {
   isEdit.value = false; editId.value = null
-  form.value   = { firstName: '', lastName: '', email: '', password: '', roleTypeName: '', status: 'Active' }
+  form.value   = { firstName: '', lastName: '', email: '', password: '', roleTypeName: '', status: 'Active', branchId: null }
   clearErrors(); showModal.value = true
 }
 
 function openEdit(u: any) {
   isEdit.value = true; editId.value = u.userId
-  form.value   = { firstName: u.firstName, lastName: u.lastName, email: u.email, password: '', roleTypeName: u.roleName ?? '', status: u.status }
+  form.value   = { firstName: u.firstName, lastName: u.lastName, email: u.email, password: '', roleTypeName: u.roleName ?? '', status: u.status, branchId: u.branchId ?? null }
   clearErrors(); showModal.value = true
   openMenuId.value = null
 }
@@ -103,6 +113,7 @@ async function save() {
         firstName: form.value.firstName, lastName: form.value.lastName,
         status: form.value.status, roleTypeName: form.value.roleTypeName,
         password: form.value.password || undefined,
+        branchId: form.value.branchId ?? null,
       })
       toast('User updated.')
     } else {
@@ -110,6 +121,7 @@ async function save() {
         firstName: form.value.firstName, lastName: form.value.lastName,
         email: form.value.email, password: form.value.password,
         roleTypeName: form.value.roleTypeName,
+        branchId: form.value.branchId ?? null,
       })
       toast('User created.')
     }
@@ -219,6 +231,7 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
             <th>Name</th>
             <th>Email Address</th>
             <th>Role</th>
+            <th>Branch</th>
             <th>Status</th>
             <th style="width: 50px"></th>
           </tr>
@@ -236,6 +249,7 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
             </td>
             <td class="text-slate-500">{{ u.email }}</td>
             <td><span class="ps-tag ps-tag-blue">{{ u.roleName ?? 'No Role' }}</span></td>
+            <td class="text-slate-500 text-sm">{{ u.branchName ?? '—' }}</td>
             <td>
               <span :class="['ps-tag', u.status === 'Active' ? 'ps-tag-green' : 'ps-tag-slate']">
                 {{ u.status }}
@@ -316,6 +330,13 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
                     <option v-for="r in ROLES" :key="r.value" :value="r.value">{{ r.label }}</option>
                   </select>
                   <p v-if="fe.roleTypeName" class="ps-field-error">{{ fe.roleTypeName }}</p>
+                </div>
+                <div>
+                  <label class="ps-label">Assigned Branch</label>
+                  <select v-model="form.branchId" class="ps-input">
+                    <option :value="null">— No Branch —</option>
+                    <option v-for="b in branches" :key="b.branchId" :value="b.branchId">{{ b.branchName }}</option>
+                  </select>
                 </div>
                 <div v-if="isEdit">
                   <label class="ps-label">Status</label>

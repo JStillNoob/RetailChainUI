@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import {
   Chart, LineElement, PointElement, LinearScale, CategoryScale,
   Title, Tooltip, Legend, Filler, type ChartData
@@ -28,6 +28,9 @@ async function build() {
     const actual     = history.map((r: any) => r.actualQty != null ? Number(r.actualQty) : null)
 
     if (chart) { chart.destroy(); chart = null }
+
+    loading.value = false
+    await nextTick()
     if (!canvas.value) return
 
     const chartData: ChartData<'line'> = {
@@ -74,8 +77,7 @@ async function build() {
       },
     })
   } catch {
-    error.value = 'Could not load chart data.'
-  } finally {
+    error.value   = 'Could not load chart data.'
     loading.value = false
   }
 }
