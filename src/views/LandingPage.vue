@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import logo from '@/assets/images/logo.png'
 import api from '../services/api.ts'
@@ -157,8 +157,8 @@ function fmtPrice(price: number): string {
 }
 
 function planDesc(plan: PlanData): string {
-  if (plan.branchLimit === -1) return 'Full-featured ERP for multi-branch retail chains.'
-  if (plan.branchLimit > 1)   return `Ideal for growing retailers managing up to ${plan.branchLimit} branches.`
+  if (plan.canUseForecast)  return `Full-featured ERP with demand forecasting for up to ${plan.branchLimit} branches.`
+  if (plan.branchLimit > 1) return `Ideal for growing retailers managing up to ${plan.branchLimit} branches.`
   return 'Perfect for small single-store businesses just getting started.'
 }
 
@@ -173,6 +173,13 @@ async function fetchPlans() {
     plansLoading.value = false
   }
 }
+
+watch(fetchedPlans, async () => {
+  await nextTick()
+  document.querySelectorAll('.scroll-animate').forEach((el) => {
+    observer?.observe(el)
+  })
+})
 </script>
 
 <template>
