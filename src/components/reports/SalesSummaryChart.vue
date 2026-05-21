@@ -4,7 +4,7 @@ import {
   Chart, BarElement, LinearScale, CategoryScale,
   Title, Tooltip, Legend, type ChartData
 } from 'chart.js'
-import { getSalesByMonth } from '../../services/reportsService.ts'
+import { getSalesByMonth, exportReportPdf } from '../../services/reportsService.ts'
 
 Chart.register(BarElement, LinearScale, CategoryScale, Title, Tooltip, Legend)
 
@@ -80,6 +80,21 @@ function buildChart() {
   })
 }
 
+const exporting   = ref(false)
+const exportError = ref('')
+
+async function doExport() {
+  exporting.value   = true
+  exportError.value = ''
+  try {
+    await exportReportPdf('sales')
+  } catch {
+    exportError.value = 'Export failed. Please try again.'
+  } finally {
+    exporting.value = false
+  }
+}
+
 onMounted(load)
 onUnmounted(() => chart?.destroy())
 watch(canvas, v => { if (v && rawData.value.length) buildChart() })
@@ -97,9 +112,15 @@ defineExpose({ reload: load })
         </div>
         <div class="report-card-desc">Total sales revenue per month (last 12 months)</div>
       </div>
-      <button class="btn-ghost btn-sm" @click="load" title="Refresh">
-        <i class="ph ph-arrows-clockwise"></i>
-      </button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-ghost btn-sm" @click="load" title="Refresh">
+          <i class="ph ph-arrows-clockwise"></i>
+        </button>
+        <button class="btn-export btn-sm" :disabled="exporting || rawData.length === 0" @click="doExport" title="Export PDF">
+          <i :class="exporting ? 'ph ph-spinner spin' : 'ph ph-file-pdf'"></i>
+          {{ exporting ? 'Exporting…' : 'Export PDF' }}
+        </button>
+      </div>
     </div>
 
     <div v-if="loading" class="chart-loader">
@@ -114,6 +135,10 @@ defineExpose({ reload: load })
     </div>
     <div v-else class="chart-canvas-wrap">
       <canvas ref="canvas"></canvas>
+    </div>
+
+    <div v-if="exportError" class="export-error">
+      <i class="ph ph-warning"></i> {{ exportError }}
     </div>
 
     <!-- Summary stats below chart -->
@@ -182,7 +207,12 @@ defineExpose({ reload: load })
 .stat-val { font-size: 16px; font-weight: 800; color: #0f172a; }
 .stat-lbl { font-size: 11px; color: #94a3b8; font-weight: 500; }
 
-.btn-sm { padding: 6px 10px !important; font-size: 12px !important; }
+.btn-sm { padding: 6px 10px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: none; cursor: pointer; color: #64748b; display: inline-flex; align-items: center; gap: 6px; transition: 0.15s; }
+.btn-sm:hover:not(:disabled) { background: #f8fafc; }
+.btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-export { background: #2563eb !important; color: #ffffff !important; border-color: #2563eb !important; font-weight: 600; }
+.btn-export:hover:not(:disabled) { background: #1d4ed8 !important; border-color: #1d4ed8 !important; }
+.export-error { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #fef2f2; color: #991b1b; font-size: 12px; border-radius: 8px; margin-bottom: 12px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 0.8s linear infinite; }

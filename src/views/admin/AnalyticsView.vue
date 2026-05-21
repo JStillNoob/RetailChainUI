@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { getAnalyticsOverview, getActiveTenants } from '../../services/superadmin.ts'
+import { getAnalyticsOverview, getActiveTenants, exportAnalyticsPdf } from '../../services/superadmin.ts'
 
 defineOptions({ name: 'AnalyticsView' })
 
@@ -27,6 +27,21 @@ const kpis = computed(() => overview.value ? [
 ] : [])
 
 const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
+
+const exporting   = ref(false)
+const exportError = ref('')
+
+async function doExport() {
+  exporting.value   = true
+  exportError.value = ''
+  try {
+    await exportAnalyticsPdf()
+  } catch {
+    exportError.value = 'Export failed. Please try again.'
+  } finally {
+    exporting.value = false
+  }
+}
 </script>
 
 <template>
@@ -74,7 +89,20 @@ const avatarCls = (id: number) => `ps-avatar ps-avatar-${id % 8}`
             <div class="ps-table-title">Most Active Tenants</div>
             <div class="ps-table-subtitle">{{ topTenants.length }} tenant{{ topTenants.length !== 1 ? 's' : '' }}</div>
           </div>
-          <button class="ps-btn ps-btn-dark"><i class="ph ph-download-simple"></i> Export</button>
+          <div class="flex flex-col items-end gap-1">
+            <button
+              class="ps-btn ps-btn-dark"
+              :disabled="exporting || topTenants.length === 0"
+              :style="{ opacity: (exporting || topTenants.length === 0) ? '0.6' : '1', cursor: (exporting || topTenants.length === 0) ? 'not-allowed' : 'pointer' }"
+              @click="doExport"
+            >
+              <i :class="exporting ? 'ph ph-spinner animate-spin' : 'ph ph-file-pdf'"></i>
+              {{ exporting ? 'Exporting…' : 'Export PDF' }}
+            </button>
+            <span v-if="exportError" class="text-xs font-medium" style="color:#991b1b;">
+              <i class="ph ph-warning"></i> {{ exportError }}
+            </span>
+          </div>
         </div>
         <table class="ps-table">
           <thead>

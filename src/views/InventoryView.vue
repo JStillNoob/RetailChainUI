@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
+import { exportInventoryPdf } from '../services/forecastService.ts'
 import { useToast } from '../composables/useToast.ts'
 import { useValidation } from '../composables/useValidation.ts'
 import PsPagination from '../components/PsPagination.vue'
@@ -92,6 +93,24 @@ async function saveAdjust() {
 const lowCount = computed(() => items.value.filter(i => i.isLowStock || i.qtyOnHand === 0).length)
 const totalUnits = computed(() => items.value.reduce((s, i) => s + Number(i.qtyOnHand ?? 0), 0))
 const okCount = computed(() => items.value.length - lowCount.value)
+
+const exporting   = ref(false)
+const exportError = ref('')
+
+async function doExport() {
+  exporting.value   = true
+  exportError.value = ''
+  try {
+    const params: Record<string, string> = {}
+    if (lowOnly.value)  params.lowStock = 'true'
+    if (search.value)   params.search   = search.value
+    await exportInventoryPdf(params)
+  } catch {
+    exportError.value = 'Export failed. Please try again.'
+  } finally {
+    exporting.value = false
+  }
+}
 </script>
 
 <template>
@@ -172,7 +191,20 @@ const okCount = computed(() => items.value.length - lowCount.value)
             <span class="text-sm text-slate-600 font-medium select-none">Low stock only</span>
           </div>
           <button class="ps-btn ps-btn-primary"><i class="ph ph-funnel"></i> Filter</button>
-          <button class="ps-btn ps-btn-dark"><i class="ph ph-download-simple"></i> Export</button>
+          <div class="flex flex-col items-end gap-1">
+            <button
+              class="ps-btn ps-btn-dark"
+              :disabled="exporting || items.length === 0"
+              :style="{ opacity: (exporting || items.length === 0) ? '0.6' : '1', cursor: (exporting || items.length === 0) ? 'not-allowed' : 'pointer' }"
+              @click="doExport"
+            >
+              <i :class="exporting ? 'ph ph-spinner animate-spin' : 'ph ph-file-pdf'"></i>
+              {{ exporting ? 'Exporting…' : 'Export PDF' }}
+            </button>
+            <span v-if="exportError" class="text-xs font-medium" style="color:#991b1b;">
+              <i class="ph ph-warning"></i> {{ exportError }}
+            </span>
+          </div>
         </div>
       </div>
 

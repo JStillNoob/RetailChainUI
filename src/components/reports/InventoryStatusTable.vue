@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { getInventoryStatus } from '../../services/reportsService.ts'
+import { getInventoryStatus, exportReportPdf } from '../../services/reportsService.ts'
 
 const loading = ref(true)
 const error   = ref('')
@@ -50,6 +50,24 @@ const stockBarColor = (s: string) => ({
   'OK':           '#22c55e',
 }[s] ?? '#94a3b8')
 
+const exporting   = ref(false)
+const exportError = ref('')
+
+async function doExport() {
+  exporting.value   = true
+  exportError.value = ''
+  try {
+    const params: Record<string, string> = {}
+    if (filter.value !== 'All') params.status = filter.value
+    if (search.value) params.search = search.value
+    await exportReportPdf('inventory', params)
+  } catch {
+    exportError.value = 'Export failed. Please try again.'
+  } finally {
+    exporting.value = false
+  }
+}
+
 defineExpose({ reload: load })
 </script>
 
@@ -63,9 +81,13 @@ defineExpose({ reload: load })
         </div>
         <div class="report-card-desc">Current stock levels with reorder alerts</div>
       </div>
-      <button class="btn-ghost btn-sm" @click="load">
-        <i class="ph ph-arrows-clockwise"></i>
-      </button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-sm" @click="load"><i class="ph ph-arrows-clockwise"></i></button>
+        <button class="btn-export btn-sm" :disabled="exporting || items.length === 0" @click="doExport">
+          <i :class="exporting ? 'ph ph-spinner spin' : 'ph ph-file-pdf'"></i>
+          {{ exporting ? 'Exporting…' : 'Export PDF' }}
+        </button>
+      </div>
     </div>
 
     <!-- Summary pills -->
@@ -97,6 +119,8 @@ defineExpose({ reload: load })
         <input v-model="search" placeholder="Search…" style="width:140px" />
       </div>
     </div>
+
+    <div v-if="exportError" class="export-error"><i class="ph ph-warning"></i> {{ exportError }}</div>
 
     <div v-if="loading" class="chart-loader"><i class="ph ph-spinner spin"></i> Loading…</div>
     <div v-else-if="error" class="chart-error"><i class="ph ph-warning"></i> {{ error }}</div>
@@ -215,8 +239,12 @@ defineExpose({ reload: load })
 .chart-error  { color: #ef4444; flex-direction: row; }
 .chart-empty p { font-size: 13px; }
 
-.btn-sm { padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: none; cursor: pointer; color: #64748b; font-size: 13px; transition: 0.15s; display: inline-flex; align-items: center; gap: 6px; }
-.btn-sm:hover { background: #f8fafc; }
+.btn-sm { padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: none; cursor: pointer; color: #64748b; font-size: 12px; transition: 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+.btn-sm:hover:not(:disabled) { background: #f8fafc; }
+.btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-export { background: #2563eb !important; color: #ffffff !important; border-color: #2563eb !important; font-weight: 600; }
+.btn-export:hover:not(:disabled) { background: #1d4ed8 !important; border-color: #1d4ed8 !important; }
+.export-error { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #fef2f2; color: #991b1b; font-size: 12px; border-radius: 8px; margin-bottom: 12px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 0.8s linear infinite; }

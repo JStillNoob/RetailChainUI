@@ -4,6 +4,7 @@ import { Chart, registerables } from 'chart.js'
 import {
   getSalesByMonth, getTopProducts, getInventoryStatus, getProcurementCost,
   getBranchSales, getInventoryByBranch, getSalesHeatmap, getForecastMonthly,
+  exportReportPdf,
 } from '../services/reportsService.ts'
 
 Chart.register(...registerables)
@@ -265,6 +266,17 @@ watch(loading, async (val) => {
 })
 onBeforeUnmount(destroyCharts)
 
+const exporting   = ref(false)
+const exportError = ref('')
+
+async function doExport() {
+  exporting.value   = true
+  exportError.value = ''
+  try { await exportReportPdf('analytics') }
+  catch { exportError.value = 'Export failed. Please try again.' }
+  finally { exporting.value = false }
+}
+
 // ── Heatmap helpers ───────────────────────────────────────────────────────────
 const HM_DAYS    = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const HM_PERIODS = ['Morning', 'Afternoon', 'Evening', 'Night']
@@ -290,9 +302,25 @@ function heatLabel(day: number, period: string) {
         <h1 class="ps-page-title">Analytics</h1>
         <p class="ps-page-sub">Deep-dive business intelligence across sales, inventory, branches, and forecasting.</p>
       </div>
-      <button @click="loadAll" :disabled="loading" class="ps-btn ps-btn-outline">
-        <i class="ph ph-arrows-clockwise" :class="{ 'animate-spin': loading }"></i> Refresh
-      </button>
+      <div class="flex items-center gap-2 flex-wrap">
+        <button @click="loadAll" :disabled="loading" class="ps-btn ps-btn-outline">
+          <i class="ph ph-arrows-clockwise" :class="{ 'animate-spin': loading }"></i> Refresh
+        </button>
+        <div class="flex flex-col items-end gap-1">
+          <button
+            class="ps-btn ps-btn-dark"
+            :disabled="exporting || loading || salesByMonth.length === 0"
+            :style="{ opacity: (exporting || loading || salesByMonth.length === 0) ? '0.6' : '1', cursor: (exporting || loading || salesByMonth.length === 0) ? 'not-allowed' : 'pointer' }"
+            @click="doExport"
+          >
+            <i :class="exporting ? 'ph ph-spinner animate-spin' : 'ph ph-file-pdf'"></i>
+            {{ exporting ? 'Exporting…' : 'Export PDF' }}
+          </button>
+          <span v-if="exportError" class="text-xs font-medium" style="color:#991b1b;">
+            <i class="ph ph-warning"></i> {{ exportError }}
+          </span>
+        </div>
+      </div>
     </div>
 
     <!-- Loading -->

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.ts'
+import { exportSalesHistoryPdf } from '../services/forecastService.ts'
 import { useToast } from '../composables/useToast.ts'
 import { useAuthStore } from '../stores/auth.ts'
 import PsPagination from '../components/PsPagination.vue'
@@ -79,6 +80,24 @@ const fmtDateTime = (d: string) => {
 }
 
 const todayTotal = computed(() => sales.value.reduce((s, t) => s + Number(t.totalAmount), 0))
+
+const exporting   = ref(false)
+const exportError = ref('')
+
+async function doExport() {
+  exporting.value   = true
+  exportError.value = ''
+  try {
+    const params: Record<string, string> = {}
+    if (dateFilter.value)              params.date     = dateFilter.value
+    if (branchFilter.value !== '')     params.branchId = String(branchFilter.value)
+    await exportSalesHistoryPdf(params)
+  } catch {
+    exportError.value = 'Export failed. Please try again.'
+  } finally {
+    exporting.value = false
+  }
+}
 </script>
 
 <template>
@@ -157,6 +176,20 @@ const todayTotal = computed(() => sales.value.reduce((s, t) => s + Number(t.tota
           <button @click="load" :disabled="loading" class="ps-btn ps-btn-outline">
             <i class="ph ph-arrows-clockwise" :class="{ 'animate-spin': loading }"></i> Refresh
           </button>
+          <div class="flex flex-col items-end gap-1">
+            <button
+              class="ps-btn ps-btn-dark"
+              :disabled="exporting || total === 0"
+              :style="{ opacity: (exporting || total === 0) ? '0.6' : '1', cursor: (exporting || total === 0) ? 'not-allowed' : 'pointer' }"
+              @click="doExport"
+            >
+              <i :class="exporting ? 'ph ph-spinner animate-spin' : 'ph ph-file-pdf'"></i>
+              {{ exporting ? 'Exporting…' : 'Export PDF' }}
+            </button>
+            <span v-if="exportError" class="text-xs font-medium" style="color:#991b1b;">
+              <i class="ph ph-warning"></i> {{ exportError }}
+            </span>
+          </div>
         </div>
       </div>
 

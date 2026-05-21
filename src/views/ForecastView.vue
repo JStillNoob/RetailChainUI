@@ -10,6 +10,8 @@ import {
   getReorderRecommendations,
   updateReorderStatus,
   createPoFromRecommendation,
+  exportForecastPdf,
+  exportReordersPdf,
 } from '../services/forecastService.ts'
 import api from '../services/api.ts'
 import ForecastChart from '../components/ForecastChart.vue'
@@ -209,6 +211,28 @@ const trendIcon  = (t: string) => TREND_ICON[t]  ?? 'ph-minus'
 const trendColor = (t: string) => TREND_COLOR[t] ?? 'text-slate-400'
 const trendLabel = (t: string) => TREND_LABEL[t] ?? 'Stable'
 
+// ── Export ─────────────────────────────────────────────────────────────────────
+const exportingForecast  = ref(false)
+const exportingReorders  = ref(false)
+const exportErrForecast  = ref('')
+const exportErrReorders  = ref('')
+
+async function doExportForecast() {
+  exportingForecast.value = true
+  exportErrForecast.value = ''
+  try { await exportForecastPdf(search.value || undefined) }
+  catch { exportErrForecast.value = 'Export failed. Please try again.' }
+  finally { exportingForecast.value = false }
+}
+
+async function doExportReorders() {
+  exportingReorders.value = true
+  exportErrReorders.value = ''
+  try { await exportReordersPdf(reorderStatus.value) }
+  catch { exportErrReorders.value = 'Export failed. Please try again.' }
+  finally { exportingReorders.value = false }
+}
+
 // ── Stock bar ──────────────────────────────────────────────────────────────────
 const stockPct = (current: number, reorder: number) =>
   Math.min(100, Math.round((current / Math.max(reorder * 2, 1)) * 100))
@@ -327,7 +351,37 @@ const stockBarColor = (current: number, reorder: number) => {
               <i class="ph ph-magnifying-glass"></i>
               <input v-model="search" placeholder="Search…" />
             </div>
+            <template v-if="activeTab === 'forecast'">
+              <button
+                class="ps-btn ps-btn-dark"
+                :disabled="exportingForecast || filtered.length === 0"
+                :style="{ opacity: (exportingForecast || filtered.length === 0) ? '0.6' : '1', cursor: (exportingForecast || filtered.length === 0) ? 'not-allowed' : 'pointer' }"
+                @click="doExportForecast"
+              >
+                <i :class="exportingForecast ? 'ph ph-spinner animate-spin' : 'ph ph-file-pdf'"></i>
+                {{ exportingForecast ? 'Exporting…' : 'Export PDF' }}
+              </button>
+            </template>
+            <template v-else>
+              <button
+                class="ps-btn ps-btn-dark"
+                :disabled="exportingReorders || filteredReorders.length === 0"
+                :style="{ opacity: (exportingReorders || filteredReorders.length === 0) ? '0.6' : '1', cursor: (exportingReorders || filteredReorders.length === 0) ? 'not-allowed' : 'pointer' }"
+                @click="doExportReorders"
+              >
+                <i :class="exportingReorders ? 'ph ph-spinner animate-spin' : 'ph ph-file-pdf'"></i>
+                {{ exportingReorders ? 'Exporting…' : 'Export PDF' }}
+              </button>
+            </template>
           </div>
+        </div>
+
+        <!-- Export errors -->
+        <div v-if="exportErrForecast && activeTab === 'forecast'" class="mx-4 mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium" style="background:#fef2f2;color:#991b1b;">
+          <i class="ph ph-warning"></i> {{ exportErrForecast }}
+        </div>
+        <div v-if="exportErrReorders && activeTab === 'reorder'" class="mx-4 mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium" style="background:#fef2f2;color:#991b1b;">
+          <i class="ph ph-warning"></i> {{ exportErrReorders }}
         </div>
 
         <!-- ── Demand Forecast tab ────────────────────────────────────────────── -->

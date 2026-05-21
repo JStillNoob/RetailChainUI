@@ -4,7 +4,7 @@ import {
   Chart, BarElement, LinearScale, CategoryScale,
   Tooltip, Legend, type ChartData
 } from 'chart.js'
-import { getProcurementCost } from '../services/reportsService.ts'
+import { getProcurementCost, exportReportPdf } from '../services/reportsService.ts'
 import SalesSummaryChart      from '../components/reports/SalesSummaryChart.vue'
 import TopProductsChart       from '../components/reports/TopProductsChart.vue'
 import InventoryStatusTable   from '../components/reports/InventoryStatusTable.vue'
@@ -99,6 +99,21 @@ function buildProcChart() {
   })
 }
 
+const procExporting   = ref(false)
+const procExportError = ref('')
+
+async function exportProcurement() {
+  procExporting.value   = true
+  procExportError.value = ''
+  try {
+    await exportReportPdf('procurement')
+  } catch {
+    procExportError.value = 'Export failed. Please try again.'
+  } finally {
+    procExporting.value = false
+  }
+}
+
 function onTabChange(key: Tab) {
   activeTab.value = key
   if (key === 'procurement' && procData.value.length === 0) loadProcurement()
@@ -138,9 +153,25 @@ function onTabChange(key: Tab) {
           </h2>
           <p class="text-xs text-slate-400 mt-0.5">Total purchasing spend per month</p>
         </div>
-        <button @click="loadProcurement" class="ps-btn ps-btn-outline" style="padding: 6px 12px; font-size: 12px;">
-          <i class="ph ph-arrows-clockwise"></i>
-        </button>
+        <div class="flex gap-2 items-center">
+          <button @click="loadProcurement" class="ps-btn ps-btn-outline" style="padding: 6px 12px; font-size: 12px;">
+            <i class="ph ph-arrows-clockwise"></i>
+          </button>
+          <button
+            @click="exportProcurement"
+            :disabled="procExporting || procData.length === 0"
+            class="ps-btn"
+            style="padding: 6px 12px; font-size: 12px; background:#2563eb; color:#fff; border-color:#2563eb; font-weight:600; opacity: 1;"
+            :style="{ opacity: (procExporting || procData.length === 0) ? '0.5' : '1', cursor: (procExporting || procData.length === 0) ? 'not-allowed' : 'pointer' }"
+          >
+            <i :class="procExporting ? 'ph ph-spinner animate-spin' : 'ph ph-file-pdf'"></i>
+            {{ procExporting ? 'Exporting…' : 'Export PDF' }}
+          </button>
+        </div>
+      </div>
+
+      <div v-if="procExportError" class="flex items-center gap-2 px-3 py-2 mb-3 rounded-lg text-xs font-medium" style="background:#fef2f2;color:#991b1b;">
+        <i class="ph ph-warning"></i> {{ procExportError }}
       </div>
 
       <div v-if="procLoading" class="h-60 flex items-center justify-center gap-2 text-slate-400">

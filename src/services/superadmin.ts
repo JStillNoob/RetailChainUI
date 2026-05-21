@@ -1,5 +1,43 @@
 import api from './api.ts'
 
+// ── PDF Export ──────────────────────────────────────────────────────────────
+
+export async function exportAnalyticsPdf(): Promise<void> {
+  const response = await api.get('/superadmin/reports/export/analytics', {
+    responseType: 'blob',
+  })
+  const blob    = new Blob([response.data], { type: 'application/pdf' })
+  const blobUrl = URL.createObjectURL(blob)
+  const a       = document.createElement('a')
+  a.href = blobUrl
+
+  const cd: string = response.headers['content-disposition'] ?? ''
+  const match      = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(cd)
+  const date       = new Date().toISOString().split('T')[0]
+  a.download = match?.[1]?.replace(/['"]/g, '') ?? `RetailChain_Platform_Analytics_${date}.pdf`
+
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(blobUrl)
+}
+
+export async function exportAuditLogsPdf(params?: Record<string, string>): Promise<void> {
+  const response = await api.get('/superadmin/reports/export/audit-logs', { params, responseType: 'blob' })
+  const blob     = new Blob([response.data], { type: 'application/pdf' })
+  const blobUrl  = URL.createObjectURL(blob)
+  const a        = document.createElement('a')
+  a.href = blobUrl
+  const cd: string = response.headers['content-disposition'] ?? ''
+  const match      = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(cd)
+  const date       = new Date().toISOString().split('T')[0]
+  a.download = match?.[1]?.replace(/['"]/g, '') ?? `RetailChain_Platform_AuditLog_${date}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(blobUrl)
+}
+
 // ── Tenants ────────────────────────────────────────────────────────────────
 export const getTenants = (page = 1, pageSize = 20, search = '') =>
   api.get('/superadmin/tenants', { params: { page, pageSize, search } }).then(r => r.data)

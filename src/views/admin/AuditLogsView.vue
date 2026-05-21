@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getAuditLogs } from '../../services/superadmin.ts'
+import { getAuditLogs, exportAuditLogsPdf } from '../../services/superadmin.ts'
 import PsPagination from '../../components/PsPagination.vue'
 
 defineOptions({ name: 'AuditLogsView' })
@@ -29,6 +29,28 @@ onMounted(load)
 function resetFilters() {
   filters.value = { tenantId: '', userId: '', module: '', action: '', from: '', to: '' }
   page.value = 1; load()
+}
+
+const exporting   = ref(false)
+const exportError = ref('')
+
+async function doExport() {
+  exporting.value   = true
+  exportError.value = ''
+  try {
+    const params: Record<string, string> = {}
+    if (filters.value.tenantId) params.tenantId = filters.value.tenantId
+    if (filters.value.userId)   params.userId   = filters.value.userId
+    if (filters.value.module)   params.module   = filters.value.module
+    if (filters.value.action)   params.action   = filters.value.action
+    if (filters.value.from)     params.from     = filters.value.from
+    if (filters.value.to)       params.to       = filters.value.to
+    await exportAuditLogsPdf(params)
+  } catch {
+    exportError.value = 'Export failed. Please try again.'
+  } finally {
+    exporting.value = false
+  }
 }
 </script>
 
@@ -84,7 +106,20 @@ function resetFilters() {
           <div class="ps-table-title">Activity Log</div>
           <div class="ps-table-subtitle">{{ total.toLocaleString() }} entries</div>
         </div>
-        <button class="ps-btn ps-btn-dark"><i class="ph ph-download-simple"></i> Export</button>
+        <div class="flex flex-col items-end gap-1">
+          <button
+            class="ps-btn ps-btn-dark"
+            :disabled="exporting || total === 0"
+            :style="{ opacity: (exporting || total === 0) ? '0.6' : '1', cursor: (exporting || total === 0) ? 'not-allowed' : 'pointer' }"
+            @click="doExport"
+          >
+            <i :class="exporting ? 'ph ph-spinner animate-spin' : 'ph ph-file-pdf'"></i>
+            {{ exporting ? 'Exporting…' : 'Export PDF' }}
+          </button>
+          <span v-if="exportError" class="text-xs font-medium" style="color:#991b1b;">
+            <i class="ph ph-warning"></i> {{ exportError }}
+          </span>
+        </div>
       </div>
 
       <div v-if="loading" class="p-6 space-y-3">
