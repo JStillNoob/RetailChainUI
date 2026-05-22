@@ -273,7 +273,19 @@ async function doExport() {
   exporting.value   = true
   exportError.value = ''
   try { await exportReportPdf('analytics') }
-  catch { exportError.value = 'Export failed. Please try again.' }
+  catch (e: unknown) {
+    const axErr = e as { response?: { data?: unknown } }
+    const blob = axErr?.response?.data
+    if (blob instanceof Blob) {
+      try {
+        const text = await blob.text()
+        const json = JSON.parse(text)
+        exportError.value = json.message || json.inner || 'Export failed.'
+      } catch { exportError.value = 'Export failed. Please try again.' }
+    } else {
+      exportError.value = 'Export failed. Please try again.'
+    }
+  }
   finally { exporting.value = false }
 }
 
