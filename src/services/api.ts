@@ -1,10 +1,11 @@
 import axios, { type AxiosInstance } from 'axios'
 import router from '@/router'
 
+const BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '')
+  || 'https://retailchain.runasp.net'
+
 const api: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL
-    ? `${import.meta.env.VITE_API_BASE_URL}/api`
-    : 'https://retailchain.runasp.net/api',
+  baseURL: `${BASE}/api`,
 })
 
 // Attach JWT token automatically to every request
