@@ -1,8 +1,9 @@
 import axios, { type AxiosInstance } from 'axios'
 import router from '@/router'
 
-const BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '')
-  || 'https://retailchain.runasp.net'
+const BASE = ((import.meta.env.VITE_API_BASE_URL as string | undefined) || 'https://retailchain.runasp.net')
+  .replace(/\/+$/, '')
+  .replace(/^http:\/\//i, 'https://')
 
 const api: AxiosInstance = axios.create({
   baseURL: `${BASE}/api`,
